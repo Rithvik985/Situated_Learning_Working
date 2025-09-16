@@ -1,0 +1,249 @@
+/* Header Styles */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(42, 42, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+  transition: var(--transition);
+}
+
+.header.scrolled {
+  background: rgba(42, 42, 42, 0.98);
+  box-shadow: var(--shadow-lg);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 3.5rem 1rem;
+  max-width: 100%;
+  gap: 1.5rem;
+}
+
+/* Logo Styles - Left positioned */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: var(--transition);
+  flex-shrink: 0;
+  order: -1;
+  margin-left: 0;
+}
+
+.logo:hover {
+  transform: translateY(-1px);
+}
+
+.logo-icon {
+  font-size: 1.8rem;
+  color: var(--primary);
+}
+
+.logo-text {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.spanda-bracket {
+  color: var(--primary);
+}
+
+.spanda-text {
+  color: var(--text-primary);
+}
+
+.spanda-dot {
+  color: var(--primary);
+}
+
+.logo-subtitle {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 0.5rem;
+}
+
+/* Desktop Navigation - All items in one row */
+.nav-desktop {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: nowrap;
+  flex: 1;
+}
+
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 1rem 1rem;
+  border-radius: var(--radius);
+  transition: var(--transition);
+  position: relative;
+  white-space: nowrap;
+  font-size: 1rem;
+}
+
+.nav-link:hover {
+  color: var(--primary);
+  background: rgba(233, 206, 4, 0.1);
+}
+
+.nav-link.active {
+  color: var(--primary);
+  background: rgba(233, 206, 4, 0.15);
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 1px;
+}
+
+/* Mobile Menu Button */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  transition: var(--transition);
+  margin-left: auto;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--surface-hover);
+  color: var(--primary);
+}
+
+.mobile-menu-icon {
+  transition: var(--transition);
+}
+
+/* Mobile Navigation */
+.nav-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--divider-color);
+  background: var(--bg-darker);
+  margin: 0 -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.nav-mobile.open {
+  display: flex;
+}
+
+.nav-mobile .nav-link {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin: 0;
+}
+
+.nav-mobile .nav-link:hover {
+  background: var(--surface-hover);
+}
+
+.nav-mobile .nav-link.active {
+  background: rgba(233, 206, 4, 0.2);
+  color: var(--primary);
+}
+
+.nav-mobile .nav-link.active::after {
+  display: none;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .nav-left, .nav-right {
+    gap: 1rem;
+  }
+  
+  .nav-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .nav-left, .nav-right {
+    gap: 0.8rem;
+  }
+  
+  .nav-link {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .nav-desktop {
+    display: none;
+  }
+
+  .mobile-menu-btn {
+    display: block;
+  }
+
+  .logo {
+    position: static;
+    transform: none;
+  }
+
+  .logo:hover {
+    transform: translateY(-1px);
+  }
+
+  .logo-subtitle {
+    display: none;
+  }
+
+  .logo-text {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content {
+    padding: 0.75rem 0;
+  }
+
+  .logo {
+    gap: 0.5rem;
+  }
+
+  .logo-icon {
+    font-size: 1.25rem;
+  }
+
+  .logo-text {
+    font-size: 1rem;
+  }
+}
