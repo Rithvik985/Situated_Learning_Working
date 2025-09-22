@@ -15,14 +15,14 @@ sys.path.insert(0, str(backend_path))
 
 # Set environment variables for analytics server
 os.environ.setdefault("SERVER_TYPE", "analytics")
-os.environ.setdefault("PORT", "8004")
+os.environ.setdefault("PORT", "8023")
 
 def main():
     """Start the analytics server"""
     print("🚀 Starting Situated Learning Analytics Server...")
-    print("📊 Port: 8004")
-    print("🔗 Endpoints: http://localhost:8004/api/analytics/")
-    print("📚 Docs: http://localhost:8004/docs")
+    print("📊 Port: 8023")
+    print("🔗 Endpoints: http://localhost:8023/analytics/")
+    print("📚 Docs: http://localhost:8023/docs")
     print("=" * 50)
     
     # Import and configure the analytics app
@@ -32,7 +32,7 @@ def main():
     uvicorn.run(
         "servers.analytics_server:app",
         host="0.0.0.0",
-        port=8004,
+        port=8023,
         reload=True,
         reload_dirs=["backend"],
         log_level="info"

@@ -4,10 +4,13 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
+# Add backend to Python path
+ENV PYTHONPATH=/app/backend:$PYTHONPATH
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV PORT=8021
 
 # Install system dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -39,11 +42,11 @@ COPY backend/ /app/backend/
 RUN mkdir -p uploads outputs/logs
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8021
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8021/health || exit 1
 
-# Run the application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the generation server
+CMD ["python", "backend/servers/generation_server.py"]

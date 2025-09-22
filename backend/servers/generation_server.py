@@ -68,7 +68,7 @@ app.add_middleware(
 # Include routers
 app.include_router(
     generation_router, 
-    prefix="/api/generation", 
+    prefix="/generation", 
     tags=["Assignment Generation"]
 )
 
@@ -99,7 +99,7 @@ async def global_exception_handler(request, exc):
 if __name__ == "__main__":
     # Server configuration
     host = os.getenv("GENERATION_HOST", "0.0.0.0")
-    port = int(os.getenv("GENERATION_PORT", "8017"))
+    port = int(os.getenv("GENERATION_PORT", "8021"))
     
     logger.info(f"Starting Generation Server on {host}:{port}")
     

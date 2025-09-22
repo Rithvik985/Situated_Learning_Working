@@ -125,42 +125,63 @@ class SaveAssignmentRequest(BaseModel):
 FEW_SHOT_EXAMPLES = [
     {
         "domain": "Embedded Systems",
-        "topic": "ARM SoC & FPGA Integration",
-        "example": """**Example 1 – Embedded Systems (ARM SoC & FPGA Integration):**
+        "topic": "Real-time Processing & Hardware Integration",
+        "example": """**Example 1 – Embedded Systems (Real-time Processing & Hardware Integration):**
+
 Problem Statement:
-Select a project aligned with your professional expertise or current work, such as designing a real-time control system in automotive or a signal processing unit in telecommunications.
+Within your current professional environment, identify a project or system that involves real-time processing, hardware-software integration, or embedded control mechanisms. This could range from IoT device management, industrial automation systems, automotive control units, or telecommunications infrastructure that aligns with embedded systems concepts.
 
 Tasks:
-1. Use ARM SoC for managing high-level control tasks and implement hardware accelerators in FPGA.
-2. Incorporate Block RAM and DSP slices for computation.
-3. Develop software in C/C++ for ARM cores and manage data flow and communication protocols.
-4. Integrate hardware and software using AXI interfaces ensuring seamless operation.
-5. Highlight reconfigurability through dynamic partial reprogramming.
-6. Simulate and test the system to meet project requirements.
+1. **System Analysis & Selection**: Document your chosen workplace system, analyzing its real-time requirements, hardware constraints, and current implementation approach
+2. **Architecture Design**: Propose an embedded solution using ARM SoC for high-level control and FPGA for hardware acceleration, incorporating your workplace-specific requirements
+3. **Implementation Planning**: Design the software architecture in C/C++, define communication protocols, and specify hardware interfaces (AXI, SPI, I2C) based on your system needs
+4. **Validation Strategy**: Develop testing procedures and simulation approaches to validate your proposed solution against workplace performance criteria
 
-Submission:
-- Detailed project report covering problem, design, implementation, and testing.
-- Hardware (Verilog/VHDL) and software code.
-- Simulation and test results validating system performance."""
+Deliverables:
+- Technical analysis report of your selected workplace system
+- Detailed design document with architecture diagrams and implementation specifications  
+- Prototype code samples and hardware configuration files
+- Testing plan and validation results demonstrating system performance"""
     },
     {
         "domain": "Mechanical System Design",
-        "topic": "AC Unit Design",
-        "example": """**Example 2 – Mechanical System Design (AC Unit):**
+        "topic": "Optimization & Analysis",
+        "example": """**Example 2 – Mechanical System Design (Optimization & Analysis):**
+
 Problem Statement:
-Design an air conditioning unit using modelling, statistical analysis, and optimization techniques.
+In your current work environment, identify a mechanical system or component that could benefit from design optimization, performance analysis, or efficiency improvements. This might include HVAC systems, manufacturing equipment, automotive components, or industrial machinery that connects with mechanical design principles.
 
 Tasks:
-1. Use workplace data wherever possible for accurate design; otherwise, online data may be used with proper source attribution.
-2. Model the system considering operational parameters.
-3. Apply statistical methods to assess performance variability.
-4. Optimize the design for efficiency and cost-effectiveness.
-5. Highlight how the data informs design choices.
+1. **System Identification**: Select and document a relevant mechanical system from your workplace, outlining current performance metrics and optimization opportunities
+2. **Data Collection & Modeling**: Gather operational data (workplace data preferred, or reliable online sources with attribution) and develop mathematical models of system behavior
+3. **Statistical Analysis**: Apply statistical methods to analyze performance variability, reliability patterns, and identify optimization parameters
+4. **Design Optimization**: Implement optimization techniques to enhance efficiency, reduce costs, or improve performance based on your workplace constraints
 
-Submission:
-- Report with sections on modelling, statistics, and optimization.
-- Clear referencing of workplace or online data.
-- Emphasis on professional relevance and practical applicability."""
+Deliverables:
+- System analysis report with current state assessment and improvement opportunities
+- Mathematical models and statistical analysis of system performance
+- Optimization recommendations with supporting calculations and simulations
+- Implementation plan adapted to your specific workplace context and constraints"""
+    },
+    {
+        "domain": "Software Development",
+        "topic": "Object-Oriented Systems & Database Integration",
+        "example": """**Example 3 – Software Development (Object-Oriented Systems & Database Integration):**
+
+Problem Statement:
+Within your current professional role, identify a software system, application, or data management challenge that could benefit from object-oriented design principles and database optimization. This could involve enterprise applications, web services, mobile apps, or data processing systems currently used in your workplace.
+
+Tasks:
+1. **Requirements Analysis**: Document a relevant software challenge from your work environment, analyzing current system limitations and identifying areas where OOP principles and database management could provide improvements
+2. **System Design**: Create an object-oriented architecture design that addresses your workplace requirements, incorporating appropriate design patterns, class hierarchies, and database schema optimization
+3. **Implementation**: Develop key components of your system using industry-standard programming languages and database management systems relevant to your workplace technology stack
+4. **Testing & Performance**: Implement comprehensive testing strategies and database performance optimization techniques, measuring improvements against your workplace success criteria
+
+Deliverables:
+- Requirements document and current system analysis based on your workplace context
+- Complete system design with UML diagrams, database schema, and architecture documentation
+- Working code implementation with proper OOP structure and database integration
+- Testing results and performance metrics demonstrating system improvements and workplace applicability"""
     }
 ]
 

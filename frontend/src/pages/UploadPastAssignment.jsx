@@ -14,7 +14,7 @@ import {
   faFolderOpen
 } from '@fortawesome/free-solid-svg-icons'
 import { useDropzone } from 'react-dropzone'
-import { getUploadUrl } from '../config/api'
+import { getApiUrl, SERVERS, ENDPOINTS } from '../config/api'
 import './UploadPastAssignment.css'
 
 const UploadPastAssignment = () => {
@@ -145,7 +145,7 @@ const UploadPastAssignment = () => {
       })
 
       // Make API call
-      const response = await fetch(getUploadUrl('/api/past-assignments'), {
+      const response = await fetch(getApiUrl(SERVERS.UPLOAD, ENDPOINTS.UPLOAD_ASSIGNMENT), {
         method: 'POST',
         body: uploadFormData
       })

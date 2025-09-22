@@ -29,7 +29,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { useDropzone } from 'react-dropzone'
 import EvaluationSteps from '../components/EvaluationSteps'
-import { API_CONFIG } from '../config/api'
+import { getApiUrl, SERVERS, ENDPOINTS } from '../config/api'
 
 const Evaluation = () => {
   // Step management
@@ -117,7 +117,7 @@ const Evaluation = () => {
   const fetchCourses = async () => {
     setLoadingCourses(true)
     try {
-      const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/courses`)
+      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_COURSES))
       if (!response.ok) throw new Error('Failed to fetch courses')
       const data = await response.json()
       setCourses(data)
@@ -134,7 +134,7 @@ const Evaluation = () => {
   const fetchCourseFilters = async (courseTitle) => {
     setLoadingFilters(true)
     try {
-      const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/courses/${encodeURIComponent(courseTitle)}/filters`)
+      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_COURSE_FILTERS) + `/${encodeURIComponent(courseTitle)}/filters`)
       if (!response.ok) throw new Error('Failed to fetch course filters')
       const data = await response.json()
       setCourseFilters(data)
@@ -148,7 +148,7 @@ const Evaluation = () => {
   const fetchAssignments = async (courseTitle, academicYear = '', semester = '') => {
     setLoadingAssignments(true)
     try {
-      let url = `${API_CONFIG.EVALUATION_URL}/api/evaluation/courses/${encodeURIComponent(courseTitle)}/assignments`
+      let url = getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_ASSIGNMENTS) + `/${encodeURIComponent(courseTitle)}/assignments`
       const params = new URLSearchParams()
       
       if (academicYear) params.append('academic_year', academicYear)
@@ -175,7 +175,7 @@ const Evaluation = () => {
   const fetchRubrics = async (assignmentId) => {
     setLoadingRubrics(true)
     try {
-      const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/assignments/${assignmentId}/rubrics`)
+      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_RUBRICS) + `/${assignmentId}/rubrics`)
       if (!response.ok) throw new Error('Failed to fetch rubrics')
       const data = await response.json()
       setRubrics(data)
@@ -204,7 +204,7 @@ const Evaluation = () => {
     })
 
     try {
-      const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/submissions/upload`, {
+      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.SUBMIT_EVALUATION), {
         method: 'POST',
         body: formData
       })
@@ -253,7 +253,7 @@ const Evaluation = () => {
       
       console.log('Evaluating submissions with IDs:', submissionIds)
       
-      const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/evaluate`, {
+      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATE_SUBMISSION), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -279,7 +279,7 @@ const Evaluation = () => {
 
   const checkServiceStatus = async () => {
     try {
-      const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/status`)
+      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_PROGRESS))
       const status = await response.json()
       setServiceStatus(status)
     } catch (error) {
@@ -309,7 +309,7 @@ const Evaluation = () => {
     setIsGeneratingRubric(true)
 
     try {
-      const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/assignments/${selectedAssignment.id}/rubric/generate`, {
+      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_RUBRIC_GENERATE) + `/${selectedAssignment.id}/rubric/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -375,7 +375,7 @@ const Evaluation = () => {
     }
 
     try {
-      const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/rubric/${selectedRubric.id}/edit`, {
+      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_RUBRIC_EDIT) + `/${selectedRubric.id}/edit`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1261,7 +1261,6 @@ const Evaluation = () => {
           getRootProps={getRootProps}
           getInputProps={getInputProps}
           isDragActive={isDragActive}
-          API_CONFIG={API_CONFIG}
         />
       )}
 

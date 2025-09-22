@@ -66,7 +66,7 @@ app.add_middleware(
 )
 
 # Include upload router
-app.include_router(upload_router, prefix="/api")
+app.include_router(upload_router, prefix="/uploadAss")
 
 # Health check endpoint
 @app.get("/health")
@@ -88,7 +88,7 @@ async def root():
     }
 
 if __name__ == "__main__":
-    port = 8016  # Upload server port
+    port = 8020  # Upload server port
     print(f"Starting Upload Server on port {port}")
     print(f"API Documentation: http://localhost:{port}/docs")
     

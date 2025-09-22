@@ -446,9 +446,9 @@ async def get_courses_for_filter(db: Session = Depends(get_db)):
         academic_years = list(set([c.academic_year for c in courses]))
         
         return {
-                    "course_titles": sorted(course_titles),
-                    "academic_years": sorted(academic_years, reverse=True)
-        }
+                        "course_titles": sorted(course_titles),
+                        "academic_years": sorted(academic_years, reverse=True)
+            }
         
     except Exception as e:
         logger.error(f"Error getting courses for filter: {str(e)}")

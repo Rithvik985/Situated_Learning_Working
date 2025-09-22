@@ -63,7 +63,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(evaluation_router, prefix="/api/evaluation")
+app.include_router(evaluation_router, prefix="/evaluation")
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -91,7 +91,7 @@ async def root():
     }
 
 if __name__ == "__main__":
-    port = int(os.getenv("EVALUATION_PORT", 8019))  # Different port from generation (8018) and upload (8017)
+    port = int(os.getenv("EVALUATION_PORT", 8022))  # Evaluation server port
     logger.info(f"Starting Evaluation Server on port {port}")
     uvicorn.run(
         "evaluation_server:app",

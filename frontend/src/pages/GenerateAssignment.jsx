@@ -18,7 +18,7 @@ import {
   faInfoCircle,
   faCheckCircle
 } from '@fortawesome/free-solid-svg-icons'
-import { API_CONFIG } from '../config/api'
+import { getApiUrl, SERVERS, ENDPOINTS } from '../config/api'
 
 const GenerateAssignment = () => {
   // Form state
@@ -73,7 +73,7 @@ const GenerateAssignment = () => {
 
   const fetchDomains = async () => {
     try {
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/domains`)
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.GET_DOMAINS))
       const data = await response.json()
       setAvailableDomains(data.domains || [])
     } catch (err) {
@@ -192,7 +192,7 @@ const GenerateAssignment = () => {
 
     try {
       console.log('Saving rubric with ID:', rubric.rubric_id)
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/rubric/${rubric.rubric_id}`, {
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.RUBRIC_EDIT) + `/${rubric.rubric_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -242,7 +242,7 @@ const GenerateAssignment = () => {
 
     try {
       console.log('Downloading rubric with ID:', rubric.rubric_id)
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/rubric/${rubric.rubric_id}/download`)
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.RUBRIC_DOWNLOAD) + `/${rubric.rubric_id}/download`)
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -293,7 +293,7 @@ const GenerateAssignment = () => {
     showNotification('Clearing previous assignments and starting fresh generation...', 'info')
 
     try {
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/generate-progressive`, {
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.GENERATE_PROGRESSIVE), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -423,7 +423,7 @@ const GenerateAssignment = () => {
     }
 
     try {
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/assignments/${assignmentId}`, {
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.EDIT_ASSIGNMENT) + `/${assignmentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -497,7 +497,7 @@ const GenerateAssignment = () => {
     setIsGeneratingRubric(true)
 
     try {
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/rubric/generate`, {
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.RUBRIC_GENERATE), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -535,7 +535,7 @@ const GenerateAssignment = () => {
     }
 
     try {
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/assignments/save`, {
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.SAVE_ASSIGNMENT), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -563,7 +563,7 @@ const GenerateAssignment = () => {
 
   const downloadSingleAssignment = async (assignmentId, title) => {
     try {
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/assignments/${assignmentId}/download`)
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.DOWNLOAD_ASSIGNMENT) + `/${assignmentId}/download`)
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -594,7 +594,7 @@ const GenerateAssignment = () => {
     }
 
     try {
-      const response = await fetch(`${API_CONFIG.GENERATION_URL}/api/generation/assignments/download`, {
+      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.DOWNLOAD_MULTIPLE), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

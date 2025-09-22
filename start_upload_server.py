@@ -31,7 +31,7 @@ def run_upload_server():
     
     try:
         # Start upload server
-        print("Starting Upload Server on port 8016...")
+        print("Starting Upload Server on port 8020...")
         cmd = [venv_python, "servers/upload_server.py"]
         
         process = subprocess.Popen(
@@ -45,8 +45,8 @@ def run_upload_server():
         
         print("Upload Server started successfully!")
         print("\nAccess Points:")
-        print("   - Upload API:   http://localhost:8016")
-        print("   - API Docs:     http://localhost:8016/docs")
+        print("   - Upload API:   http://localhost:8020")
+        print("   - API Docs:     http://localhost:8020/docs")
         print("\nPress Ctrl+C to stop the server")
         print("=" * 60)
         

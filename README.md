@@ -30,10 +30,10 @@ A comprehensive web application for generating situational assignments, evaluati
 ## 🏗️ Architecture
 
 ### Backend (FastAPI) - Multi-Server Architecture
-- **Upload Server** (Port 8001): Handles file uploads and processing
-- **Generation Server** (Port 8002): Manages assignment and rubric generation
-- **Evaluation Server** (Port 8003): Handles student submission evaluation
-- **Analytics Server** (Port 8004): Provides analytics and reporting APIs
+- **Upload Server** (Port 8020): Handles file uploads and processing
+- **Generation Server** (Port 8021): Manages assignment and rubric generation
+- **Evaluation Server** (Port 8022): Handles student submission evaluation
+- **Analytics Server** (Port 8023): Provides analytics and reporting APIs
 - **PostgreSQL**: Primary database for metadata and relationships
 - **MinIO**: Object storage for files and content
 - **SQLAlchemy**: ORM for database operations
@@ -46,6 +46,317 @@ A comprehensive web application for generating situational assignments, evaluati
 - **CSS Modules**: Scoped styling
 - **FontAwesome**: Icon library
 - **Chart.js**: Data visualization for analytics
+
+## 🛠️ Technology Stack
+
+### Backend
+- **Python 3.9+**
+- **FastAPI**
+- **PostgreSQL**
+- **MinIO**
+- **SQLAlchemy**
+- **PyMuPDF** (PDF processing)
+- **Pillow** (Image processing)
+- **OpenAI API** / **vLLM** (LLM services)
+
+### Frontend
+- **Node.js 16+**
+- **React 18**
+- **Vite**
+- **React Router**
+- **CSS Modules**
+
+### Infrastructure
+- **Docker** (containerization)
+- **Docker Compose** (orchestration)
+
+## 📋 Prerequisites
+
+- **Python 3.9+**
+- **Node.js 16+**
+- **PostgreSQL 12+**
+- **MinIO** (or compatible S3 service)
+- **OpenAI API Key** (optional, for cloud LLM)
+- **vLLM** (optional, for local LLM)
+
+## 🚀 Quick Start
+
+### For First-Time Users (Windows) 🪟
+
+1. **Clone and Setup Environment**
+   ```cmd
+   git clone <repository-url>
+   cd Situated_Learning
+   
+   # Setup backend environment
+   cd backend
+   python -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+   cd ..
+   
+   # Setup frontend environment
+   cd frontend
+   npm install
+   cd ..
+   ```
+
+2. **Setup Environment Variables**
+   ```cmd
+   python setup_local_env.py
+   ```
+
+3. **Start Databases & Initialize**
+   ```cmd
+   .\setup_database.bat
+   ```
+   *This will start PostgreSQL and MinIO containers and initialize the database structure*
+
+4. **Start Application**
+   ```cmd
+   .\start_separated_servers.bat
+   ```
+
+5. **Access Application**
+   - **Frontend**: http://localhost:3000
+   - **MinIO Console**: http://localhost:9001 (admin/password1234)
+
+### For First-Time Users (Linux/macOS) 🐧
+
+1. **Clone and Setup Environment**
+   ```bash
+   git clone <repository-url>
+   cd Situated_Learning
+   
+   # Setup backend environment
+   cd backend
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   cd ..
+   
+   # Setup frontend environment
+   cd frontend
+   npm install
+   cd ..
+   ```
+
+2. **Setup Environment Variables**
+   ```bash
+   python setup_local_env.py
+   ```
+
+3. **Start Databases**
+   ```bash
+   docker-compose up postgres minio -d
+   ```
+
+4. **Initialize Database Structure**
+   ```bash
+   python setup_database.py
+   ```
+
+5. **Start Application**
+   ```bash
+   chmod +x start_separated_servers.sh
+   ./start_separated_servers.sh
+   ```
+
+6. **Access Application**
+   - **Frontend**: http://localhost:3000
+   - **MinIO Console**: http://localhost:9001 (admin/password1234)
+
+### Option 1: Local Development (Recommended for Development)
+
+#### Prerequisites
+- **Python 3.9+**
+- **Node.js 16+**
+- **PostgreSQL 12+** (running locally on port 5432)
+- **MinIO** (running locally on port 9000)
+
+#### 1. Clone Repository
+```bash
+git clone <repository-url>
+cd Situated_Learning
+```
+
+#### 2. Backend Setup
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables for local development
+python ../setup_local_env.py
+# This will automatically create .env with localhost configurations
+```
+
+#### 3. Database Setup
+```bash
+# Start PostgreSQL and MinIO containers
+docker-compose up postgres minio -d
+
+# Initialize database and bucket structure
+python setup_database.py
+```
+
+#### 4. Frontend Setup
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+```
+
+#### 5. Start All Services
+
+**Windows:**
+```cmd
+# From project root
+.\start_separated_servers.bat
+```
+
+**Linux/macOS:**
+```bash
+# From project root
+chmod +x start_separated_servers.sh
+./start_separated_servers.sh
+```
+
+#### 6. Access Application
+- **Frontend**: http://localhost:3000
+- **Upload API**: http://localhost:8020
+- **Generation API**: http://localhost:8021
+- **Evaluation API**: http://localhost:8022
+- **Analytics API**: http://localhost:8023
+- **API Documentation**: Available at each server's `/docs` endpoint
+
+### Option 2: Docker Deployment (Recommended for Production)
+
+#### 1. Clone Repository
+```bash
+git clone <repository-url>
+cd Situated_Learning
+```
+
+#### 2. Start All Services with Docker Compose
+```bash
+# Build and start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+#### 3. Access Application
+- **Frontend**: http://localhost:3000
+- **Upload API**: http://localhost:8020
+- **Generation API**: http://localhost:8021
+- **Evaluation API**: http://localhost:8022
+- **Analytics API**: http://localhost:8023
+- **MinIO Console**: http://localhost:9001 (admin/password1234)
+
+## ⚙️ Configuration
+
+### Environment Variables (.env)
+
+#### For Local Development
+```env
+# Server Configuration
+HOST=0.0.0.0
+DEBUG=false
+LOG_LEVEL=INFO
+
+# Database (Local PostgreSQL)
+DATABASE_URL=postgresql://admin:password1234@localhost:5432/situated_learning_db
+
+# MinIO Configuration (Local MinIO)
+MINIO_ENDPOINT=localhost:9000
+MINIO_ACCESS_KEY=admin
+MINIO_SECRET_KEY=password1234
+MINIO_BUCKET=situated-learning
+MINIO_SECURE=false
+
+# LLM Configuration
+USE_OPENAI=false  # Set to true for OpenAI, false for vLLM
+OPENAI_API_KEY=your_openai_api_key  # Only needed if USE_OPENAI=true
+
+# File Processing
+MAX_FILE_SIZE=50MB
+UPLOAD_DIR=./uploads
+OUTPUT_DIR=./outputs
+TEMP_DIR=./temp
+
+# CORS Settings
+ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8080
+```
+
+#### For Docker Deployment
+```env
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+DEBUG=true
+
+# Database (Docker container)
+DATABASE_URL=postgresql://admin:password1234@postgres:5432/situated_learning_db
+
+# MinIO Configuration (Docker container)
+MINIO_ENDPOINT=minio:9000
+MINIO_ACCESS_KEY=admin
+MINIO_SECRET_KEY=password1234
+MINIO_BUCKET=situated-learning
+MINIO_SECURE=false
+
+# LLM Configuration
+USE_OPENAI=false  # Set to true for OpenAI, false for vLLM
+OPENAI_API_KEY=your_openai_api_key  # Only needed if USE_OPENAI=true
+
+# File Processing
+MAX_FILE_SIZE=50MB
+UPLOAD_DIR=./uploads
+OUTPUT_DIR=./outputs
+TEMP_DIR=./temp
+
+# CORS Settings
+ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8080
+```
+
+### LLM Configuration
+
+The system supports both OpenAI and local vLLM:
+
+#### OpenAI Setup
+```env
+USE_OPENAI=true
+OPENAI_API_KEY=sk-your-api-key-here
+```
+
+#### vLLM Setup
+```env
+USE_OPENAI=false
+```
+
+Start vLLM services:
+```bash
+# Text model
+vllm serve ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4 --port 8012
+
+# Vision model
+vllm serve Qwen/Qwen2.5-VL-32B-Instruct-AWQ --port 8011
+```
+
+**Note**: When running vLLM locally and the application in Docker containers, the containers will automatically use `host.docker.internal` to access your local vLLM services. The docker-compose.yml is configured to use:
+- `LLM_BASE_URL=http://host.docker.internal:8012/v1`
+- `VISION_LLM_BASE_URL=http://host.docker.internal:8011/v1`
 
 ## 📁 Project Structure
 
@@ -63,154 +374,263 @@ Situated_Learning/
 │   ├── storage/           # MinIO client
 │   ├── utils/             # Utilities and helpers
 │   ├── config/            # Configuration management
+│   ├── Dockerfile         # Main backend Dockerfile
+│   ├── Dockerfile.upload  # Upload server Dockerfile
+│   ├── Dockerfile.generation  # Generation server Dockerfile
+│   ├── Dockerfile.evaluation  # Evaluation server Dockerfile
+│   ├── Dockerfile.analytics   # Analytics server Dockerfile
 │   └── requirements.txt   # Python dependencies
 ├── frontend/
 │   ├── src/
 │   │   ├── components/    # React components
 │   │   ├── pages/         # Page components
-│   │   │   ├── Analytics.jsx  # New analytics page
-│   │   │   └── ...
+│   │   ├── config/        # API configuration
 │   │   ├── styles/        # CSS files
 │   │   └── utils/         # Frontend utilities
 │   ├── package.json       # Node.js dependencies
-│   └── vite.config.js     # Vite configuration
+│   ├── vite.config.js     # Vite configuration
+│   └── Dockerfile         # Frontend Dockerfile
+├── database/
+│   └── init.sql          # Database initialization
 ├── start_*.py            # Server startup scripts
-├── docker-compose.yml    # Database and MinIO setup
+├── docker-compose.yml    # Docker orchestration
 └── README.md            # This file
 ```
 
-## 📋 Prerequisites
+## 🗄️ Database Management
 
-- **Python 3.9+**
-- **Node.js 16+**
-- **PostgreSQL 12+**
-- **MinIO** (or compatible S3 service)
-- **OpenAI API Key** (optional, for cloud LLM)
-- **vLLM** (optional, for local LLM)
+### Database Setup and Initialization
 
-## 🚀 Local Development Setup
+The system uses two database components:
 
-### 1. Clone Repository
+#### PostgreSQL Database
+- **Purpose**: Stores metadata, assignments, submissions, evaluations, and analytics
+- **Initialization**: Automatically handled by `setup_database.py`
+- **Schema**: Defined in `database/init.sql`
+
+#### MinIO Object Storage
+- **Purpose**: Stores uploaded files, generated assignments, and evaluation reports
+- **Bucket Structure**: Created automatically when files are uploaded
+- **Structure**:
+  ```
+  situated-learning/
+  ├── past-assignments/
+  │   └── {assignment_id}/{filename}
+  ├── generated-assignments/
+  │   └── {assignment_id}/{filename}
+  └── submissions/
+      └── {submission_id}/{filename}
+  ```
+
+### Database Setup Commands
+
 ```bash
-git clone https://github.com/spandaai/Situated_Learning.git
-cd Situated_Learning
-```
-
-### 2. Database & Storage Setup
-```bash
-# Start PostgreSQL and MinIO containers
+# Start database containers
 docker-compose up postgres minio -d
 
-# Wait for services to be ready (about 30 seconds)
-# Initialize database schema
-python init.sql
+# Initialize database and bucket structure
+python setup_database.py
+
+# Initialize only MinIO buckets
+python setup_minio_buckets.py
 ```
 
-### 3. Backend Setup
+### Database Access
+
+#### PostgreSQL
+- **Host**: localhost:5432
+- **Database**: situated_learning_db
+- **Username**: admin
+- **Password**: password1234
+
+#### MinIO Console
+- **URL**: http://localhost:9001
+- **Username**: admin
+- **Password**: password1234
+
+### Troubleshooting
+
+#### Database Connection Issues
 ```bash
-# Create virtual environment
-python -m venv venv
+# Check if containers are running
+docker ps
 
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
+# View PostgreSQL logs
+docker logs situated_learning_postgres
 
-# Install dependencies
-pip install -r requirements.txt
+# View MinIO logs
+docker logs situated_learning_minio
 
-# Install additional dependencies for analytics
-pip install reportlab
+# Restart database containers
+docker-compose restart postgres minio
 ```
 
-### 4. Frontend Setup
+#### Reset Database
 ```bash
-cd frontend
+# Stop containers
+docker-compose down
 
-# Install dependencies
-npm install
+# Remove volumes (WARNING: This will delete all data)
+docker volume rm situated_learning_postgres_data situated_learning_minio_data
 
-# Install additional dependencies for analytics
-npm install chart.js react-chartjs-2
+# Start fresh
+docker-compose up postgres minio -d
+python setup_database.py
 ```
-
-### 5. Start All Servers
-
-#### Option A: Start Individual Servers (Recommended for Development)
-```bash
-# Terminal 1: Upload Server (Port 8001)
-python start_upload_server.py
-
-# Terminal 2: Generation Server (Port 8002)
-python start_generation_server.py
-
-# Terminal 3: Evaluation Server (Port 8003)
-python start_evaluation_server.py
-
-# Terminal 4: Analytics Server (Port 8004)
-python start_analytics_server.py
-
-# Terminal 5: Frontend (Port 3000)
-cd frontend
-npm run dev
-```
-
-#### Option B: Quick Start Scripts
-```bash
-# Start all backend servers
-python start_all_servers.py
-
-# Start frontend (in another terminal)
-cd frontend
-npm run dev
-```
-
-### 6. Access Application
-- **Frontend**: http://localhost:3000
-- **Upload API**: http://localhost:8001/docs
-- **Generation API**: http://localhost:8002/docs
-- **Evaluation API**: http://localhost:8003/docs
-- **Analytics API**: http://localhost:8004/docs
-- **MinIO Console**: http://localhost:9001 (admin/password1234)
 
 ## 🔧 Development
 
-### Environment Variables
-The application uses environment variables for configuration. Create a `.env` file in the root directory:
+The application uses a microservices architecture with separated servers:
 
-```env
-# Database Configuration
-DATABASE_URL=postgresql://admin:password1234@localhost:5432/situated_learning_db
-
-# MinIO Configuration
-MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=admin
-MINIO_SECRET_KEY=password1234
-MINIO_BUCKET=situated-learning
-MINIO_SECURE=false
-
-# LLM Configuration
-USE_OPENAI=false
-OPENAI_API_KEY=your_openai_api_key
-
-# CORS Settings
-ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000
+#### Start All Services
+**Windows:**
+```bash
+start_separated_servers.bat
 ```
 
-### Server Architecture
-The application uses a microservices architecture with separate servers for different functionalities:
+**Linux/macOS:**
+```bash
+chmod +x start_separated_servers.sh
+./start_separated_servers.sh
+```
 
-- **Upload Server** (Port 8001): Handles file uploads and processing
-- **Generation Server** (Port 8002): Manages assignment and rubric generation  
-- **Evaluation Server** (Port 8003): Handles student submission evaluation
-- **Analytics Server** (Port 8004): Provides analytics and reporting APIs
+#### Individual Server Development
 
-### Development Tips
-- Each server can be started independently for focused development
-- Use the individual startup scripts for debugging specific components
-- The frontend automatically connects to all backend servers
-- Database and MinIO are shared across all servers
+**Upload Server (Port 8020):**
+```bash
+cd backend
+python servers/upload_server.py
+```
+
+**Generation Server (Port 8021):**
+```bash
+cd backend
+python servers/generation_server.py
+```
+
+**Evaluation Server (Port 8022):**
+```bash
+cd backend
+python servers/evaluation_server.py
+```
+
+**Analytics Server (Port 8023):**
+```bash
+cd backend
+python servers/analytics_server.py
+```
+
+**Frontend Development:**
+```bash
+cd frontend
+npm run dev
+```
+
+### Database Migrations
+```bash
+cd backend
+python setup_database.py
+```
+
+### Testing
+```bash
+# Backend tests
+cd backend
+python -m pytest
+
+# Frontend tests
+cd frontend
+npm test
+```
+
+## 🐳 Docker Deployment
+
+### Using Docker Compose
+```bash
+# Build and start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Individual Services
+```bash
+# Upload server only
+docker build -t situated-learning-upload ./backend -f backend/Dockerfile.upload
+docker run -p 8020:8020 situated-learning-upload
+
+# Generation server only
+docker build -t situated-learning-generation ./backend -f backend/Dockerfile.generation
+docker run -p 8021:8021 situated-learning-generation
+
+# Evaluation server only
+docker build -t situated-learning-evaluation ./backend -f backend/Dockerfile.evaluation
+docker run -p 8022:8022 situated-learning-evaluation
+
+# Analytics server only
+docker build -t situated-learning-analytics ./backend -f backend/Dockerfile.analytics
+docker run -p 8023:8023 situated-learning-analytics
+
+# Frontend only
+docker build -t situated-learning-frontend ./frontend
+docker run -p 3000:3000 situated-learning-frontend
+```
+
+### DOCX → PDF Conversion (Linux/Docker)
+
+- The backend containers now include LibreOffice and common fonts, enabling reliable, layout-preserving DOCX to PDF conversion in headless mode.
+- No additional setup is required when running via Docker Compose.
+
+### DOCX → PDF Conversion (Windows)
+
+- Install LibreOffice or Microsoft Word locally if you run the backend without Docker.
+- Ensure `libreoffice` or `soffice` is available on PATH. The app auto-detects and prefers LibreOffice for highest fidelity.
+- Alternatively, install `docx2pdf` and Microsoft Word (Windows-only) if you prefer Word-based conversion.
+
+### Fonts and Layout Fidelity
+
+- To preserve layout, ensure required fonts are available. The Docker image ships with DejaVu, Liberation, and Microsoft core fonts. For custom institutional fonts, mount them into the container and register via fontconfig:
+
+```bash
+docker run -v /path/to/fonts:/usr/share/fonts/truetype/custom:ro \
+  --entrypoint bash situated-learning-upload -lc "fc-cache -f && fc-list | wc -l"
+```
+
+If you notice layout deviations, add the missing fonts to the container.
+
+## 📊 API Endpoints
+
+The application uses separated servers, each with its own API endpoints:
+
+### Upload Server (Port 8020)
+- `POST /uploadAss/past-assignments` - Upload past assignments
+- `GET /uploadAss/assignments` - List uploaded assignments
+- `GET /uploadAss/assignments/{id}` - Get assignment details
+- **Documentation**: http://localhost:8020/docs
+
+### Generation Server (Port 8021)
+- `POST /generation/generate` - Generate assignments
+- `GET /generation/status` - Get generation status
+- `POST /generation/rubric` - Generate rubrics
+- **Documentation**: http://localhost:8021/docs
+
+### Evaluation Server (Port 8022)
+- `GET /evaluation/courses` - Get courses for evaluation
+- `POST /evaluation/submissions/upload` - Upload student submissions
+- `POST /evaluation/evaluate` - Evaluate submissions
+- `GET /evaluation/assignments/{id}/report` - Download evaluation report
+- **Documentation**: http://localhost:8022/docs
+
+### Analytics Server (Port 8023)
+- `GET /analytics/overview` - Get analytics overview
+- `GET /analytics/usage` - Get usage statistics
+- `GET /analytics/content` - Get content analytics
+- `GET /analytics/learning` - Get learning analytics
+- **Documentation**: http://localhost:8023/docs
 
 ## 🤝 Contributing
 

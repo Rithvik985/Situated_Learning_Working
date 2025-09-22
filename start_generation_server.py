@@ -16,7 +16,7 @@ def main():
     
     # Set environment variables for the server
     os.environ.setdefault("GENERATION_HOST", "0.0.0.0")
-    os.environ.setdefault("GENERATION_PORT", "8017")
+    os.environ.setdefault("GENERATION_PORT", "8021")
     
     # Add backend directory to Python path
     backend_dir = current_dir / "backend"
@@ -25,7 +25,7 @@ def main():
     print("🚀 Starting Generation Server...")
     print(f"📁 Working directory: {current_dir}")
     print(f"🔧 Backend path: {backend_dir}")
-    print(f"🌐 Server will run on: http://localhost:{os.environ.get('GENERATION_PORT', '8017')}")
+    print(f"🌐 Server will run on: http://localhost:{os.environ.get('GENERATION_PORT', '8021')}")
     print()
     
     # Change to the backend directory

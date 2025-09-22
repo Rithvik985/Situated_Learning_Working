@@ -38,7 +38,7 @@ app.add_middleware(
 )
 
 # Include analytics router
-app.include_router(analytics_router, prefix="/api/analytics", tags=["analytics"])
+app.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 
 @app.get("/")
 async def root():
@@ -74,4 +74,4 @@ async def health_check(db: Session = Depends(get_async_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8004)
+    uvicorn.run(app, host="0.0.0.0", port=8023)

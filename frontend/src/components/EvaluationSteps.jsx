@@ -1,5 +1,6 @@
 import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { getApiUrl, SERVERS, ENDPOINTS } from '../config/api'
 import { 
   faClipboardCheck, 
   faCloudUpload,
@@ -47,8 +48,7 @@ const EvaluationSteps = ({
   removeFile,
   getRootProps,
   getInputProps,
-  isDragActive,
-  API_CONFIG
+  isDragActive
 }) => {
 
   if (currentStep === 3 && selectedAssignment) {
@@ -451,7 +451,7 @@ const EvaluationSteps = ({
                               return
                             }
 
-                            const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/submissions/${result.submission_id}/review`, {
+                            const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_REVIEW) + `/${result.submission_id}/review`, {
                               method: 'PUT',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
@@ -711,7 +711,7 @@ const EvaluationSteps = ({
                 try {
                   showNotification('Generating comprehensive evaluation report...', 'info')
                   
-                  const response = await fetch(`${API_CONFIG.EVALUATION_URL}/api/evaluation/assignments/${selectedAssignment.id}/report`)
+                  const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.EVALUATION_REPORT) + `/${selectedAssignment.id}/report`)
                   
                   if (response.ok) {
                     // Get filename from Content-Disposition header or use default

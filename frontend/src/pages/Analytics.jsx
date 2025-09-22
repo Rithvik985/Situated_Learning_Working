@@ -23,7 +23,7 @@ import {
   faEye,
   faEyeSlash
 } from '@fortawesome/free-solid-svg-icons'
-import { API_CONFIG } from '../config/api'
+import { getApiUrl, SERVERS, ENDPOINTS } from '../config/api'
 import './Analytics.css'
 
 const Analytics = () => {
@@ -81,7 +81,7 @@ const Analytics = () => {
 
   const loadAvailableFilters = async () => {
     try {
-      const response = await fetch(`${API_CONFIG.ANALYTICS_URL}/api/analytics/courses`)
+      const response = await fetch(getApiUrl(SERVERS.ANALYTICS, ENDPOINTS.ANALYTICS_COURSES))
       if (!response.ok) throw new Error('Failed to load filter options')
       const data = await response.json()
       setAvailableFilters(data)
@@ -101,10 +101,10 @@ const Analytics = () => {
       if (filters.academicYearFilter) params.append('academic_year_filter', filters.academicYearFilter)
       
       const [overviewRes, usageRes, contentRes, learningRes] = await Promise.all([
-        fetch(`${API_CONFIG.ANALYTICS_URL}/api/analytics/overview?${params}`),
-        fetch(`${API_CONFIG.ANALYTICS_URL}/api/analytics/usage?days=${filters.timeRange}&${params}`),
-        fetch(`${API_CONFIG.ANALYTICS_URL}/api/analytics/content?${params}`),
-        fetch(`${API_CONFIG.ANALYTICS_URL}/api/analytics/learning?${params}`)
+        fetch(getApiUrl(SERVERS.ANALYTICS, ENDPOINTS.ANALYTICS_OVERVIEW) + `?${params}`),
+        fetch(getApiUrl(SERVERS.ANALYTICS, ENDPOINTS.ANALYTICS_USAGE) + `?days=${filters.timeRange}&${params}`),
+        fetch(getApiUrl(SERVERS.ANALYTICS, ENDPOINTS.ANALYTICS_CONTENT) + `?${params}`),
+        fetch(getApiUrl(SERVERS.ANALYTICS, ENDPOINTS.ANALYTICS_LEARNING) + `?${params}`)
       ])
 
       if (!overviewRes.ok || !usageRes.ok || !contentRes.ok || !learningRes.ok) {
@@ -160,7 +160,7 @@ const Analytics = () => {
       if (filters.courseFilter) params.append('course_filter', filters.courseFilter)
       if (filters.academicYearFilter) params.append('academic_year_filter', filters.academicYearFilter)
       
-      const response = await fetch(`${API_CONFIG.ANALYTICS_URL}/api/analytics/export?${params}`)
+      const response = await fetch(getApiUrl(SERVERS.ANALYTICS, ENDPOINTS.ANALYTICS_EXPORT) + `?${params}`)
       if (!response.ok) throw new Error('Failed to export data')
       
       const blob = await response.blob()

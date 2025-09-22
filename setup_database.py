@@ -19,31 +19,39 @@ async def setup_database():
     print("🗄️ Setting up Situated Learning Database")
     print("=" * 50)
     
-    # Check if Docker is available
-    try:
-        subprocess.run(["docker", "--version"], capture_output=True, check=True)
-        print("✅ Docker is available")
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print("❌ Docker is not installed or not accessible")
-        return False
+    # Check if we're running inside Docker
+    is_docker = os.path.exists('/.dockerenv')
     
-    # Start database services
-    print("🚀 Starting database services...")
-    try:
-        result = subprocess.run(
-            ["docker-compose", "up", "-d", "postgres", "minio", "redis"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        print("✅ Database services started successfully")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to start database services: {e.stderr}")
-        return False
-    
-    # Wait for services to be ready
-    print("⏳ Waiting for services to be ready...")
-    time.sleep(15)
+    if not is_docker:
+        # Check if Docker is available (only when not running in Docker)
+        try:
+            subprocess.run(["docker", "--version"], capture_output=True, check=True)
+            print("✅ Docker is available")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("❌ Docker is not installed or not accessible")
+            return False
+        
+        # Start database services
+        print("🚀 Starting database services...")
+        try:
+            result = subprocess.run(
+                ["docker-compose", "up", "-d", "postgres", "minio", "redis"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            print("✅ Database services started successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to start database services: {e.stderr}")
+            return False
+        
+        # Wait for services to be ready
+        print("⏳ Waiting for services to be ready...")
+        time.sleep(15)
+    else:
+        print("🐳 Running inside Docker container - services should already be available")
+        print("⏳ Waiting for services to be ready...")
+        time.sleep(5)
     
     # Test database connection
     print("🔍 Testing database connection...")

@@ -23,7 +23,7 @@ def start_evaluation_server():
     # Set environment variables
     env = os.environ.copy()
     env['PYTHONPATH'] = str(backend_dir)
-    env['EVALUATION_PORT'] = '8019'
+    env['EVALUATION_PORT'] = '8022'
     
     try:
         # Start the server
@@ -34,8 +34,8 @@ def start_evaluation_server():
         )
         
         print(f"Evaluation Server started with PID: {process.pid}")
-        print("Server running at: http://localhost:8019")
-        print("API Documentation: http://localhost:8019/docs")
+        print("Server running at: http://localhost:8022")
+        print("API Documentation: http://localhost:8022/docs")
         print("Press Ctrl+C to stop the server")
         
         # Wait for process to complete

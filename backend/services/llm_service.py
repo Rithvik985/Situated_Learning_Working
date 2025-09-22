@@ -31,6 +31,9 @@ class LLMService:
     ) -> str:
         """Generate a situated learning assignment using LLM"""
         
+        # Store difficulty level for use in user prompt
+        self._current_difficulty = difficulty_level
+        
         system_prompt = self._create_system_prompt(difficulty_level)
         user_prompt = self._create_user_prompt(
             course_name, topics, domains, custom_instructions, few_shot_examples
@@ -45,33 +48,41 @@ class LLMService:
 
     def _create_system_prompt(self, difficulty_level: str) -> str:
         """Create system prompt for assignment generation"""
-        return f"""You are an expert instructional designer specializing in situated learning assignments for working professionals. Your task is to create assignments that reflect real workplace challenges and leverage students' existing job roles and experience.
+        return """You are an expert instructional designer specializing in situated learning assignments for working professionals. Your task is to create assignments that allow students to leverage their existing workplace contexts without making assumptions about their specific roles or companies.
 
-Key Principles for Situated Learning Assignments:
-1. Real-World Context: Use authentic problems or projects from the student's professional environment.
-2. Workplace Integration: Ensure students can apply concepts, tools, and methods to tasks they are currently handling or could realistically encounter.
-3. Data-Driven Design: Encourage use of workplace data where possible; if unavailable, allow online data with proper attribution.
-4. Practical Implementation: Assignments should require designing, optimizing, simulating, or analyzing systems using actual technologies and industry standards.
-5. Professional Deliverables: Assignments should produce outputs (reports, designs, diagrams, code) that are actionable in real projects.
-6. Progressive Complexity: Structure tasks to build from guided applications to analysis and critical problem-solving.
+### Core Design Philosophy:
+- NEVER assign specific roles or company contexts to students
+- Create assignments that are adaptable to various professional situations
+- Allow students to select relevant projects from their current work environment
+- Focus on the learning objectives while maintaining professional relevance
 
-Assignment Guidelines:
-- Begin with a problem statement rooted in a real or plausible workplace scenario.
-- Define the student's role and responsibilities clearly.
-- Provide hardware/software/system requirements where applicable.
-- Encourage use of tools, protocols, or data relevant to the industry domain.
-- Include sections on design, implementation, testing, and reporting.
-- Provide clear instructions on deliverables, success criteria, and documentation.
+### Key Principles:
+1. **Contextual Flexibility**: Use phrases like "in your current role," "within your organization," "based on your professional context"
+2. **Self-Selection Approach**: Let students choose projects that align with course topics from their workplace
+3. **Universal Applicability**: Ensure assignments work across different companies, roles, and industries within the domain
+4. **Real-World Integration**: Connect theoretical concepts to practical workplace applications
+5. **Professional Output**: Generate deliverables that have actual workplace value
 
-Difficulty Level Guidance:
-- Beginner: Structured tasks with defined steps and templates.
-- Intermediate: Analytical tasks requiring decision-making and partial guidance.
-- Advanced: Open-ended problem-solving requiring innovation, optimization, and validation.
+### Assignment Structure:
+1. **Problem Statement**: 
+   - Start with course topic alignment
+   - Use inclusive language like "identify," "select," or "choose" a relevant workplace scenario
+   - Provide topic-specific guidance for project selection
+   
+2. **Tasks**: 
+   - 3-4 progressive tasks building from basic to advanced
+   - Each task should be implementable regardless of specific company/role
+   - Focus on applying course concepts to their chosen workplace context
+   
+3. **Deliverables**: 
+   - Professional outputs applicable across various work environments
+   - Clear success criteria that can be evaluated universally
 
-Output Format:
-- Professional tone and clear language suitable for working professionals.
-- Organized structure with numbered tasks, clear expectations, and deliverables.
-- Guidance on how assignments connect theory with real-world applications."""
+### Language Guidelines:
+- Use: "In your current professional role...", "Within your organization...", "Based on your workplace experience..."
+- Avoid: "You are a [specific role] at [specific company type]", "As a [job title]..."
+- Encourage: Student agency in selecting appropriate workplace contexts
+- Ensure: Assignment validity across different professional situations"""
 
     def _create_user_prompt(
         self,
@@ -86,33 +97,27 @@ Output Format:
         # Format few-shot examples
         examples_text = ""
         if few_shot_examples:
-            examples_text = "\n\n### Reference Examples (for format and style guidance):\n"
+            examples_text = "\n\n### Reference Examples:\n"
             for i, example in enumerate(few_shot_examples, 1):
-                examples_text += f"\n**Example {i} - {example['domain']}:**\n{example['example']}\n"
+                examples_text += f"\n{example['example']}\n"
 
-        prompt = f"""### Assignment Generation Context
+        prompt = f"""### Assignment Generation Request
 
 **Course:** {course_name}
 **Topics:** {', '.join(topics)}
-**Industry Domains:** {', '.join(domains)}
-"""
+**Industry Domain:** {', '.join(domains)}
+**Difficulty Level:** {getattr(self, '_current_difficulty', 'Intermediate')}
+**Custom Instructions:** {custom_instructions or 'None'}
 
-        if custom_instructions:
-            prompt += f"**Custom Instructions:** {custom_instructions}\n"
-
-        prompt += f"""
 {examples_text}
 
-### Task
-Generate a NEW situated learning assignment that:
-
-1. Creates a realistic problem statement based on the provided course, topics, and industry domains.
-2. Aligns with the student's professional role and encourages use of workplace experience.
-3. Incorporates data-driven and practical methods, allowing for hands-on implementation.
-4. Includes 3–4 tasks that build from basic to advanced levels, suited to the assignment's difficulty level.
-5. Provides actionable deliverables with clear reporting, simulation, or testing requirements.
-6. Uses professional terminology and industry-standard tools or protocols.
-7. Connects theoretical knowledge to workplace challenges with measurable outcomes."""
+### Generate Assignment:
+Create a situated learning assignment following the system guidelines that:
+1. Allows students to select workplace-relevant projects aligned with the course topics
+2. Provides clear guidance for project selection without prescribing specific roles
+3. Includes 3-4 progressive tasks suitable for the difficulty level
+4. Produces professional deliverables applicable across various work contexts
+5. Maintains universal applicability while ensuring industry relevance"""
 
         return prompt
 

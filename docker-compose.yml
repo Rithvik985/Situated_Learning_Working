@@ -1,19 +1,18 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: situated_learning_postgres
     environment:
       POSTGRES_DB: situated_learning_db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password1234
-    ports:
-      - "5432:5432"
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
     networks:
       - situated_learning_network
     healthcheck:
@@ -21,6 +20,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
 
   # MinIO Object Storage
   minio:
@@ -29,68 +29,238 @@ services:
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password1234
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
     ports:
       - "9000:9000"
       - "9001:9001"
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
     networks:
       - situated_learning_network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
-      timeout: 20s
-      retries: 3
-
-  # Redis for caching and background tasks
-  redis:
-    image: redis:7-alpine
-    container_name: situated_learning_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - situated_learning_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
 
-  # Backend API
-  backend:
+  # Database Initialization Service
+  db-init:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: situated_learning_backend
+      context: .
+      dockerfile: backend/Dockerfile.analytics
+    container_name: situated_learning_db_init
     environment:
+      - HOST=0.0.0.0
+      - PORT=8023
+      - DEBUG=false
+      - LOG_LEVEL=INFO
       - DATABASE_URL=postgresql://admin:password1234@postgres:5432/situated_learning_db
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=admin
       - MINIO_SECRET_KEY=password1234
+      - MINIO_BUCKET=situated-learning
       - MINIO_SECURE=false
-      - REDIS_URL=redis://redis:6379
-      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - backend_uploads:/app/uploads
-      - backend_outputs:/app/outputs
+      - USE_OPENAI=false
+      - OPENAI_TEXT_MODEL=gpt-4o-mini
+      - OPENAI_VISION_MODEL=gpt-4o
+      - MODEL_NAME=ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
+      - LLM_BASE_URL=http://host.docker.internal:8012/v1
+      - VISION_MODEL_NAME=Qwen/Qwen2.5-VL-32B-Instruct-AWQ
+      - VISION_LLM_BASE_URL=http://host.docker.internal:8011/v1
+      - LLM_MAX_TOKENS=800
+      - LLM_TEMPERATURE=0.0
+      - LLM_TIMEOUT=60
+      - VISION_MAX_TOKENS=2000
+      - VISION_TIMEOUT=120
+      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8080
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     networks:
       - situated_learning_network
-    restart: unless-stopped
+    command: ["python", "setup_database.py"]
+    restart: "no"
 
-  # Frontend
+  # Upload Server
+  upload:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.upload
+    container_name: situated_learning_upload
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8020
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://admin:password1234@postgres:5432/situated_learning_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=password1234
+      - MINIO_BUCKET=situated-learning
+      - MINIO_SECURE=false
+      - USE_OPENAI=false
+      - OPENAI_TEXT_MODEL=gpt-4o-mini
+      - OPENAI_VISION_MODEL=gpt-4o
+      - MODEL_NAME=ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
+      - LLM_BASE_URL=http://host.docker.internal:8012/v1
+      - VISION_MODEL_NAME=Qwen/Qwen2.5-VL-32B-Instruct-AWQ
+      - VISION_LLM_BASE_URL=http://host.docker.internal:8011/v1
+      - LLM_MAX_TOKENS=800
+      - LLM_TEMPERATURE=0.0
+      - LLM_TIMEOUT=60
+      - VISION_MAX_TOKENS=2000
+      - VISION_TIMEOUT=120
+      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8080
+    ports:
+      - "8020:8020"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - situated_learning_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Generation Server
+  generation:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.generation
+    container_name: situated_learning_generation
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8021
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://admin:password1234@postgres:5432/situated_learning_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=password1234
+      - MINIO_BUCKET=situated-learning
+      - MINIO_SECURE=false
+      - USE_OPENAI=false
+      - OPENAI_TEXT_MODEL=gpt-4o-mini
+      - OPENAI_VISION_MODEL=gpt-4o
+      - MODEL_NAME=ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
+      - LLM_BASE_URL=http://host.docker.internal:8012/v1
+      - VISION_MODEL_NAME=Qwen/Qwen2.5-VL-32B-Instruct-AWQ
+      - VISION_LLM_BASE_URL=http://host.docker.internal:8011/v1
+      - LLM_MAX_TOKENS=800
+      - LLM_TEMPERATURE=0.0
+      - LLM_TIMEOUT=60
+      - VISION_MAX_TOKENS=2000
+      - VISION_TIMEOUT=120
+      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8080
+    ports:
+      - "8021:8021"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - situated_learning_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8021/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Evaluation Server
+  evaluation:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.evaluation
+    container_name: situated_learning_evaluation
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8022
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://admin:password1234@postgres:5432/situated_learning_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=password1234
+      - MINIO_BUCKET=situated-learning
+      - MINIO_SECURE=false
+      - USE_OPENAI=false
+      - OPENAI_TEXT_MODEL=gpt-4o-mini
+      - OPENAI_VISION_MODEL=gpt-4o
+      - MODEL_NAME=ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
+      - LLM_BASE_URL=http://host.docker.internal:8012/v1
+      - VISION_MODEL_NAME=Qwen/Qwen2.5-VL-32B-Instruct-AWQ
+      - VISION_LLM_BASE_URL=http://host.docker.internal:8011/v1
+      - LLM_MAX_TOKENS=800
+      - LLM_TEMPERATURE=0.0
+      - LLM_TIMEOUT=60
+      - VISION_MAX_TOKENS=2000
+      - VISION_TIMEOUT=120
+      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8080
+    ports:
+      - "8022:8022"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - situated_learning_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8022/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Analytics Server
+  analytics:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.analytics
+    container_name: situated_learning_analytics
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8023
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://admin:password1234@postgres:5432/situated_learning_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=password1234
+      - MINIO_BUCKET=situated-learning
+      - MINIO_SECURE=false
+      - USE_OPENAI=false
+      - OPENAI_TEXT_MODEL=gpt-4o-mini
+      - OPENAI_VISION_MODEL=gpt-4o
+      - MODEL_NAME=ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
+      - LLM_BASE_URL=http://host.docker.internal:8012/v1
+      - VISION_MODEL_NAME=Qwen/Qwen2.5-VL-32B-Instruct-AWQ
+      - VISION_LLM_BASE_URL=http://host.docker.internal:8011/v1
+      - LLM_MAX_TOKENS=800
+      - LLM_TEMPERATURE=0.0
+      - LLM_TIMEOUT=60
+      - VISION_MAX_TOKENS=2000
+      - VISION_TIMEOUT=120
+      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8080
+    ports:
+      - "8023:8023"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - situated_learning_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8023/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend React App
   frontend:
     build:
       context: ./frontend
@@ -98,24 +268,24 @@ services:
     container_name: situated_learning_frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
-    environment:
-      - VITE_API_URL=http://localhost:8000
     depends_on:
-      - backend
+      - upload
+      - generation
+      - evaluation
+      - analytics
     networks:
       - situated_learning_network
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-  minio_data:
-  redis_data:
-  backend_uploads:
-  backend_outputs:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   situated_learning_network:
     driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
