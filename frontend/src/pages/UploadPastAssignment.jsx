@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback,useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { 
   faUpload, 
@@ -40,14 +40,99 @@ const UploadPastAssignment = () => {
   const [uploading, setUploading] = useState(false)
   const [uploadResults, setUploadResults] = useState(null)
   const [uploadError, setUploadError] = useState('')
+  const [error, setError] = useState('')
+  const [samlData, setSamlData] = useState({});
+  const [userData, setUserData] = useState({});
+
+      useEffect(() => {
+    const fetchSamlData = async () => {
+      try {
+        // IMPORTANT: use exact backend path (qpra not qbg)
+        const url = `/sla/get-saml-data`;
+        console.log("[SAML] Fetching SAML data from:", url);
+  
+        const response = await fetch(url, {
+          method: "GET",
+          credentials: "include", // include HttpOnly cookie
+          headers: {
+            "Accept": "application/json",
+          },
+        });
+  
+        if (!response.ok) {
+          console.warn("[SAML] fetch returned non-ok:", response.status);
+          // If unauthorized, redirect to login (start SAML flow)
+          if (response.status === 401) {
+            console.log("[SAML] Session missing/expired — redirecting to login");
+            window.location.href = `/`;
+            return;
+          }
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+  
+        const data = await response.json();
+        setUserData(data);
+        // Defensive extraction
+        const courseData = {};
+        const apiData = data?.api_data;
+  
+        if (Array.isArray(apiData)) {
+          apiData.forEach((source, srcIndex) => {
+            const ds = source?.["data-source"] || source?.data_source || `source_${srcIndex}`;
+            const courses = Array.isArray(source?.courses) ? source.courses : Array.isArray(source?.data) ? source.data : [];
+  
+            courses.forEach((course) => {
+              if (!course || typeof course !== "object") return;
+  
+              if (ds === "taxila") {
+                // Taxila: key = fullname, value = shortname
+                if (course.fullname && course.shortname) {
+                  courseData[course.fullname] = course.shortname;
+                }
+              } else if (ds === "canvas") {
+                // Canvas: key = name, value = course_code
+                if (course.name && course.course_code) {
+                  courseData[course.name] = course.course_code;
+                }
+              } else {
+                // generic fallback — try common fields
+                const title = course.fullname || course.name || course.title;
+                const code = course.shortname || course.course_code || course.code || course.id;
+                if (title && code) courseData[title] = code;
+              }
+            });
+          });
+        } else {
+          console.warn("[SAML] api_data missing or not an array:", apiData);
+        }
+  
+        setSamlData(courseData);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching SAML data:", err);
+        setError(err.message || "Unknown error");
+        setSamlData({}); // ensure consistent state shape
+      }
+    };
+  
+    fetchSamlData();
+  }, []);
 
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target
+      if (name === "courseTitle") {
+    setFormData((prev) => ({
+      ...prev,
+      courseTitle: value,        
+      courseCode: samlData[value] || "", 
+    }));
+  } else {
     setFormData(prev => ({
       ...prev,
       [name]: name === 'semester' ? parseInt(value) : value
     }))
+  }
   }
 
   // Handle file drop
@@ -111,7 +196,7 @@ const UploadPastAssignment = () => {
     
     // Validate form
     if (!formData.courseTitle.trim()) {
-      setUploadError('Course title is required')
+      setUploadError('Course name is required')
       return
     }
     if (!formData.courseCode.trim()) {
@@ -177,13 +262,18 @@ const UploadPastAssignment = () => {
   return (
     <div className="upload-container">
       <div className="container">
-        <div className="upload-header">
-          <div className="upload-icon">
-            <FontAwesomeIcon icon={faUpload} />
-          </div>
-          <h1>Upload Past Assignments</h1>
-          <p>Build your reference corpus by uploading past assignments for intelligent assignment generation</p>
-        </div>
+   <div className="upload-header">
+  <div className="upload-title">
+    <div className="upload-icon">
+      <FontAwesomeIcon icon={faUpload} />
+    </div>
+    <h1>Upload Past Assignments</h1>
+  </div>
+  <p>
+    Build your reference corpus by uploading past assignments for intelligent assignment generation
+  </p>
+</div>
+
 
         {/* Upload Form */}
         <div className="upload-form-container">
@@ -198,9 +288,9 @@ const UploadPastAssignment = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="courseTitle" className="form-label">
-                    Course Title *
+                    Course Name *
                   </label>
-                  <input
+                  <select
                     type="text"
                     id="courseTitle"
                     name="courseTitle"
@@ -209,12 +299,19 @@ const UploadPastAssignment = () => {
                     value={formData.courseTitle}
                     onChange={handleInputChange}
                     required
-                  />
+                  >
+                          <option value="" disabled>Select a Course</option>
+        {Object.keys(samlData).map((courseName, index) => (
+          <option key={index} value={courseName}>
+            {courseName}
+          </option>
+        ))}
+                  </select>
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="courseCode" className="form-label">
-                    Course Code *
+                    Course Id *
                   </label>
                   <input
                     type="text"
@@ -223,8 +320,7 @@ const UploadPastAssignment = () => {
                     className="form-input"
                     placeholder="e.g., CS101"
                     value={formData.courseCode}
-                    onChange={handleInputChange}
-                    required
+                    readOnly
                   />
                 </div>
               </div>

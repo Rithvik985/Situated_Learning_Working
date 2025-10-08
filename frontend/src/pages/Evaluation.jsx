@@ -530,15 +530,18 @@ const Evaluation = () => {
   return (
     <div className="container" style={{ padding: '2rem 0', minHeight: '100vh' }}>
       {/* Header */}
-      <div className="text-center" style={{ marginBottom: '2rem' }}>
-        <div style={{ fontSize: '3rem', color: 'var(--primary)', marginBottom: '1rem' }}>
-          <FontAwesomeIcon icon={faClipboardCheck} />
-        </div>
-        <h1>Student Submission Evaluation</h1>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
-          Comprehensive AI-powered evaluation with OCR processing, rubric-based scoring, and detailed feedback generation.
-        </p>
-      </div>
+  <div className="text-center" style={{ marginBottom: '2rem' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+    <div style={{ fontSize: '3rem', color: 'var(--primary)' }}>
+      <FontAwesomeIcon icon={faClipboardCheck} />
+    </div>
+    <h1 style={{ fontSize: '2.5rem', margin: 0 }}>Student Submission Evaluation</h1>
+  </div>
+
+  <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
+    Comprehensive AI-powered evaluation with OCR processing, rubric-based scoring, and detailed feedback generation.
+  </p>
+</div>
 
       {/* Service Status Indicator */}
       {serviceStatus && (

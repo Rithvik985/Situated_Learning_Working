@@ -45,6 +45,7 @@ body {
   color: var(--text-primary);
   background: var(--bg-dark);
   overflow-x: hidden;
+  padding: 3%;
 }
 
 /* Typography */
@@ -250,10 +251,7 @@ a:hover {
   flex-direction: column;
 }
 
-.main-content {
-  flex: 1;
-  padding-top: 80px; /* Account for fixed header */
-}
+
 
 /* Responsive Design */
 @media (max-width: 768px) {

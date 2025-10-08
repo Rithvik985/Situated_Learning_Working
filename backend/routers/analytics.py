@@ -10,8 +10,8 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 import logging
 
-from database.repository import get_db
-from database.models import (
+from backend.database.repository import get_db
+from backend.database.models import (
     Course, PastAssignment, GeneratedAssignment, AssignmentRubric,
     StudentSubmission, EvaluationResult
 )

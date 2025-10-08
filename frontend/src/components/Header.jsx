@@ -9,9 +9,11 @@ import {
   faChartLine,
   faUpload,
   faClipboardCheck,
-  faHome
+  faHome,
+  faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons'
 import './Header.css'
+import axios from 'axios'
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -39,10 +41,28 @@ const Header = () => {
     return location.pathname === path
   }
 
+const handleLogout = async () => {
+  try {
+    const response = await axios.get(
+      `/sla/logout`,  // ✅ corrected endpoint
+      { withCredentials: true }
+    );
+
+    if (response.data?.success) {
+      window.location.href = response.data.redirect_url;
+    } else {
+      console.warn('Logout API returned unexpected response:', response.data);
+    }
+  } catch (error) {
+    console.error('Logout failed:', error);
+  }
+};
+
+
   return (
     <header className={`header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="container">
-        <div className="header-content">
+        <div className="header-content-bar">
           {/* Logo - Centered */}
           <Link to="/" className="logo" onClick={closeMobileMenu}>
             <FontAwesomeIcon icon={faGraduationCap} className="logo-icon" />
@@ -59,13 +79,6 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="nav-desktop">
             <Link 
-              to="/upload-past-assignment" 
-              className={`nav-link ${isActive('/upload-past-assignment') ? 'active' : ''}`}
-            >
-              <FontAwesomeIcon icon={faUpload} />
-              Upload Past Assignments
-            </Link>
-            <Link 
               to="/generate-assignment" 
               className={`nav-link ${isActive('/generate-assignment') ? 'active' : ''}`}
             >
@@ -73,20 +86,37 @@ const Header = () => {
               Generate Assignment
             </Link>
             <Link 
-              to="/evaluation" 
+              to="/evaluate-assignment" 
               className={`nav-link ${isActive('/evaluation') ? 'active' : ''}`}
             >
               <FontAwesomeIcon icon={faClipboardCheck} />
               Evaluation
             </Link>
             <Link 
-              to="/analytics" 
+              to="/dashboard" 
               className={`nav-link ${isActive('/analytics') ? 'active' : ''}`}
             >
               <FontAwesomeIcon icon={faChartLine} />
               Analytics
             </Link>
+            <Link 
+              to="/upload-past-assignment" 
+              className={`nav-link ${isActive('/upload-past-assignment') ? 'active' : ''}`}
+            >
+              <FontAwesomeIcon icon={faUpload} />
+              Upload Past Assignments
+            </Link>
           </nav>
+
+          {/* Logout Button - Desktop */}
+          <button 
+            className="logout-btn"
+            onClick={handleLogout}
+            aria-label="Logout"
+          >
+            <FontAwesomeIcon icon={faSignOutAlt} />
+            Logout
+          </button>
 
           {/* Mobile Menu Button */}
           <button 
@@ -120,7 +150,7 @@ const Header = () => {
             Generate Assignment
           </Link>
           <Link 
-            to="/evaluation" 
+            to="/evaluate-assignment" 
             className={`nav-link ${isActive('/evaluation') ? 'active' : ''}`}
             onClick={closeMobileMenu}
           >
@@ -128,13 +158,26 @@ const Header = () => {
             Evaluation
           </Link>
           <Link 
-            to="/analytics" 
+            to="/dashboard" 
             className={`nav-link ${isActive('/analytics') ? 'active' : ''}`}
             onClick={closeMobileMenu}
           >
             <FontAwesomeIcon icon={faChartLine} />
             Analytics
           </Link>
+          
+          {/* Logout Button - Mobile */}
+          <button 
+            className="logout-btn mobile"
+            onClick={() => {
+              handleLogout()
+              closeMobileMenu()
+            }}
+            aria-label="Logout"
+          >
+            <FontAwesomeIcon icon={faSignOutAlt} />
+            Logout
+          </button>
         </nav>
       </div>
     </header>

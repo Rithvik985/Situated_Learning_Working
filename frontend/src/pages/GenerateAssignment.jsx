@@ -53,6 +53,82 @@ const GenerateAssignment = () => {
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 6, message: '' })
   const [expandedAssignments, setExpandedAssignments] = useState(new Set())
   const [notifications, setNotifications] = useState([])
+  const [error, setError] = useState('')
+  const [samlData, setSamlData] = useState({});
+  const [userData, setUserData] = useState({});
+    useEffect(() => {
+  const fetchSamlData = async () => {
+    try {
+      // IMPORTANT: use exact backend path (qpra not qbg)
+      const url = `/sla/get-saml-data`;
+      console.log("[SAML] Fetching SAML data from:", url);
+
+      const response = await fetch(url, {
+        method: "GET",
+        credentials: "include", // include HttpOnly cookie
+        headers: {
+          "Accept": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.warn("[SAML] fetch returned non-ok:", response.status);
+        // If unauthorized, redirect to login (start SAML flow)
+        if (response.status === 401) {
+          console.log("[SAML] Session missing/expired — redirecting to login");
+          window.location.href = `/`;
+          return;
+        }
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setUserData(data);
+      // Defensive extraction
+      const courseData = {};
+      const apiData = data?.api_data;
+
+      if (Array.isArray(apiData)) {
+        apiData.forEach((source, srcIndex) => {
+          const ds = source?.["data-source"] || source?.data_source || `source_${srcIndex}`;
+          const courses = Array.isArray(source?.courses) ? source.courses : Array.isArray(source?.data) ? source.data : [];
+
+          courses.forEach((course) => {
+            if (!course || typeof course !== "object") return;
+
+            if (ds === "taxila") {
+              // Taxila: key = fullname, value = shortname
+              if (course.fullname && course.shortname) {
+                courseData[course.fullname] = course.shortname;
+              }
+            } else if (ds === "canvas") {
+              // Canvas: key = name, value = course_code
+              if (course.name && course.course_code) {
+                courseData[course.name] = course.course_code;
+              }
+            } else {
+              // generic fallback — try common fields
+              const title = course.fullname || course.name || course.title;
+              const code = course.shortname || course.course_code || course.code || course.id;
+              if (title && code) courseData[title] = code;
+            }
+          });
+        });
+      } else {
+        console.warn("[SAML] api_data missing or not an array:", apiData);
+      }
+
+      setSamlData(courseData);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching SAML data:", err);
+      setError(err.message || "Unknown error");
+      setSamlData({}); // ensure consistent state shape
+    }
+  };
+
+  fetchSamlData();
+}, []);
 
   // Generate academic years from 2009-10 to 2025-26
   const generateAcademicYears = () => {
@@ -632,15 +708,21 @@ const GenerateAssignment = () => {
   return (
     <div className="container" style={{ padding: '2rem 0', minHeight: '100vh' }}>
       {/* Header */}
-      <div className="text-center" style={{ marginBottom: '2rem' }}>
-        <div style={{ fontSize: '3rem', color: 'var(--primary)', marginBottom: '1rem' }}>
-          <FontAwesomeIcon icon={faFileText} />
-        </div>
-        <h1>Generate Assignment</h1>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
-          Create situational, industry-relevant assignments using AI-powered generation across different difficulty levels.
-        </p>
-      </div>
+
+<div className="text-center" style={{ marginBottom: '2rem' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem'}}>
+    <div style={{ fontSize: '3rem', color: 'var(--primary)' }}>
+      <FontAwesomeIcon icon={faFileText} />
+    </div>
+    <h1 style={{ fontSize: '2.5rem', margin: 0 }}>Generate Assignment</h1>
+  </div>
+
+  <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
+    Create situational, industry-relevant assignments using AI-powered generation across different difficulty levels.
+  </p>
+</div>
+
+  
 
       {/* Notifications */}
       <div style={{
@@ -706,39 +788,46 @@ const GenerateAssignment = () => {
 
         <div className="form-grid" style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
           {/* Course Information */}
-          <div>
-            <label className="form-label">
-              Course Name *
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginLeft: '0.5rem' }}>
-                (e.g., Software Engineering, Database Systems)
-              </span>
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              value={courseName}
-              onChange={(e) => setCourseName(e.target.value)}
-              placeholder="Enter course name"
-              style={{ fontSize: '1rem' }}
-            />
-          </div>
+      <div>
+      <label className="form-label" htmlFor="course-select">
+        Course Name *
+      </label>
 
-          <div>
-            <label className="form-label">
-              Course ID *
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginLeft: '0.5rem' }}>
-                (e.g., CS101, EE201)
-              </span>
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              value={courseId}
-              onChange={(e) => setCourseId(e.target.value)}
-              placeholder="Enter course ID"
-              style={{ fontSize: '1rem' }}
-            />
-          </div>
+<select
+  id="course-select"
+  className="form-input"
+  value={courseName}
+  onChange={(e) => {
+    const title = e.target.value;
+    setCourseName(title);
+    setCourseId(samlData[title] ?? "");
+  }}
+  style={{ fontSize: "1rem" }}
+>
+  <option value="" disabled>
+    Select a Course
+  </option>
+
+  {Object.entries(samlData).map(([title, code]) => (
+    <option key={code ?? title} value={title}> {/* <-- value is title */}
+      {title}
+    </option>
+  ))}
+</select>
+</div>
+<div>
+<label className="form-label"> Course ID * <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginLeft: '0.5rem' }}> (e.g., CS101, EE201) </span> </label>
+
+{/* Course ID (read-only because it's derived from samlData) */}
+<input
+  type="text"
+  className="form-input"
+  value={courseId}
+  readOnly
+  placeholder="Course ID (auto-filled)"
+  style={{ fontSize: "1rem" }}
+/>
+</div>
 
           <div>
             <label className="form-label">

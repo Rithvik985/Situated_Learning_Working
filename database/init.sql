@@ -143,10 +143,10 @@ CREATE INDEX IF NOT EXISTS idx_generated_assignments_course_id ON generated_assi
 CREATE INDEX IF NOT EXISTS idx_student_submissions_assignment_id ON student_submissions(assignment_id);
 CREATE INDEX IF NOT EXISTS idx_evaluation_results_submission_id ON evaluation_results(submission_id);
 
--- Insert sample data for development
-INSERT INTO courses (title, course_code, academic_year, semester, description) VALUES 
-    ('Introduction to Computer Science', 'CS101', '2023-24', 1, 'Basic programming and computer science concepts'),
-    ('Data Structures and Algorithms', 'CS201', '2023-24', 2, 'Advanced data structures and algorithmic thinking'),
-    ('Business Analytics', 'BUS301', '2023-24', 1, 'Data-driven business decision making'),
-    ('Digital Marketing', 'MKT201', '2023-24', 2, 'Modern digital marketing strategies and tools')
-ON CONFLICT (title, course_code, academic_year, semester) DO NOTHING;
+-- -- Insert sample data for development
+-- INSERT INTO courses (title, course_code, academic_year, semester, description) VALUES 
+--     ('Introduction to Computer Science', 'CS101', '2023-24', 1, 'Basic programming and computer science concepts'),
+--     ('Data Structures and Algorithms', 'CS201', '2023-24', 2, 'Advanced data structures and algorithmic thinking'),
+--     ('Business Analytics', 'BUS301', '2023-24', 1, 'Data-driven business decision making'),
+--     ('Digital Marketing', 'MKT201', '2023-24', 2, 'Modern digital marketing strategies and tools')
+-- ON CONFLICT (title, course_code, academic_year, semester) DO NOTHING;

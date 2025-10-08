@@ -10,7 +10,7 @@ ENV PYTHONPATH=/app/backend:$PYTHONPATH
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8023
+ENV PORT=8022
 
 # Install system dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -38,18 +38,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code to backend directory
 COPY backend/ /app/backend/
 
-# Copy setup script from root
-COPY setup_database.py /app/
-
 # Create necessary directories
 RUN mkdir -p uploads outputs/logs
 
 # Expose port
-EXPOSE 8023
+EXPOSE 8022
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8023/health || exit 1
+    CMD curl -f http://localhost:8022/health || exit 1
 
-# Run the analytics server
-CMD ["python", "backend/servers/analytics_server.py"]
+# Run the evaluation server
+CMD ["python", "backend/servers/auth_server.py"]

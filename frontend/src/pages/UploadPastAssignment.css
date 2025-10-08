@@ -11,16 +11,22 @@
   margin-bottom: 3rem;
 }
 
+.upload-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
 .upload-icon {
-  font-size: 4rem;
+  font-size: 3rem; /* match others for consistency */
   color: var(--primary);
-  margin-bottom: 1.5rem;
 }
 
 .upload-header h1 {
   font-size: 2.5rem;
   font-weight: 700;
-  margin-bottom: 1rem;
+  margin: 0;
   color: var(--text-primary);
 }
 
@@ -31,9 +37,9 @@
   margin: 0 auto;
 }
 
+
 /* Form Container */
 .upload-form-container {
-  max-width: 800px;
   margin: 0 auto;
   background: var(--surface);
   border-radius: var(--radius-lg);

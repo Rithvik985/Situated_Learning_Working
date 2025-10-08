@@ -16,12 +16,10 @@
   box-shadow: var(--shadow-lg);
 }
 
-.header-content {
+.header-content-bar {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 3.5rem 1rem;
-  max-width: 100%;
   gap: 1.5rem;
 }
 
@@ -231,7 +229,7 @@
 }
 
 @media (max-width: 480px) {
-  .header-content {
+  .header-content-bar {
     padding: 0.75rem 0;
   }
 
@@ -245,5 +243,49 @@
 
   .logo-text {
     font-size: 1rem;
+  }
+}
+
+/* Logout button styles */
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--primary);
+  color: var(--text-on-primary);
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.logout-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.logout-btn.mobile {
+  width: 100%;
+  justify-content: flex-start;
+  margin-top: 1rem;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.logout-btn.mobile:hover {
+  background: var(--surface-hover);
+  color: var(--primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .logout-btn:not(.mobile) {
+    display: none;
   }
 }

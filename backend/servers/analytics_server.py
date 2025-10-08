@@ -7,10 +7,15 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
+import sys
+from pathlib import Path
 
-from database.connection import get_async_db
-from routers.analytics import router as analytics_router
-from config.settings import settings
+current_dir = Path(__file__).parent
+project_root = current_dir.parent.parent   # -> Situated_Learning
+sys.path.insert(0, str(project_root))
+from backend.database.connection import get_async_db
+from backend.routers.analytics import router as analytics_router
+from backend.config.settings import settings
 
 # Configure logging
 logging.basicConfig(
@@ -74,4 +79,4 @@ async def health_check(db: Session = Depends(get_async_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8023)
+    uvicorn.run("analytics_server:app", host="0.0.0.0", port=8023)

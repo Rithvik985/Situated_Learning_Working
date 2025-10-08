@@ -50,7 +50,6 @@
   gap: 4rem;
   align-items: center;
   min-height: 100vh;
-  padding: 2rem 0;
   position: relative;
   z-index: 2;
   max-width: 1200px;
@@ -287,11 +286,7 @@
   padding: 5rem 0;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
-}
+
 
 .features-section {
   background: var(--bg-dark);
@@ -628,4 +623,280 @@
   .hero-stats-cards {
     flex-direction: column;
   }
+}
+
+/* Header Navigation Styles */
+.main-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(55, 55, 55, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+  transition: var(--transition);
+  padding: 0.75rem 0;
+}
+
+.main-header.scrolled {
+  background: rgba(42, 42, 42, 0.98);
+  box-shadow: var(--shadow);
+  padding: 0.5rem 0;
+}
+
+
+
+.desktop-nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.nav-link-home {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  position: relative;
+  text-decoration: none;
+}
+
+.nav-link-home:hover {
+  color: var(--primary);
+  background: rgba(233, 206, 4, 0.1);
+  transform: translateY(-2px);
+}
+
+.nav-link-home:active {
+  transform: translateY(0);
+}
+
+.nav-link-home::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.nav-link-home:hover::after {
+  width: 80%;
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.login-button {
+  background: var(--gradient-primary);
+  color: var(--text-on-primary);
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 8px rgba(233, 206, 4, 0.3);
+}
+
+.login-button:hover {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(233, 206, 4, 0.4);
+}
+
+.login-button:active {
+  transform: translateY(0);
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-menu-toggle:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: rgba(233, 206, 4, 0.1);
+}
+
+/* Mobile Navigation */
+.mobile-nav {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-darker);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  padding: 1rem 2rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  transform: translateY(-10px);
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.mobile-nav.open {
+  display: flex;
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.nav-link.mobile {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 0.5rem;
+}
+
+.nav-link.mobile:hover {
+  background: var(--surface-hover);
+}
+
+.nav-link.mobile:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header-content {
+    padding: 0 1rem;
+  }
+
+  .desktop-nav {
+    display: none;
+  }
+
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  .spanda-logo {
+    font-size: 1.3rem;
+  }
+
+  .login-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content {
+    padding: 0 0.5rem;
+  }
+
+  .spanda-logo {
+    font-size: 1.1rem;
+  }
+
+  .login-button span {
+    display: none;
+  }
+
+  .login-button {
+    padding: 0.5rem;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Add padding to body to account for fixed header */
+body {
+  padding-top: 80px;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-top: 70px;
+  }
+}
+
+/* Adjust hero section to account for header */
+.hero {
+  padding-top: 2rem;
+}
+
+/* Animation for mobile menu */
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.mobile-nav.open {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Focus states for accessibility */
+.nav-link:focus,
+.login-button:focus,
+.mobile-menu-toggle:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Additional hover effects */
+.header-actions .login-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.header-actions .login-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.header-actions .login-button:hover::before {
+  left: 100%;
 }

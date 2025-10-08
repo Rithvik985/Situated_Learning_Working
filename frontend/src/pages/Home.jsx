@@ -29,14 +29,18 @@ import {
   faBookOpen,
   faIndustry,
   faPencilAlt,
-  faAward
+  faAward,
+  faSignInAlt,
+  faBars,
+  faTimes
 } from '@fortawesome/free-solid-svg-icons'
 import './Home.css'
-
+import axios from 'axios'
 const Home = () => {
   const navigate = useNavigate()
   const [currentFeature, setCurrentFeature] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const handleGetStarted = () => {
     navigate('/upload-past-assignment')
@@ -46,11 +50,52 @@ const Home = () => {
     navigate('/generate-assignment')
   }
 
+
+    const handleLogin = async () => {
+    try {
+      // Call the backend through the vite proxy. Vite proxy should forward /qprs -> your FastAPI (port 8019)
+      const response = await axios.get(`/sla/login`, {
+        responseType: 'json',
+      });
+    
+      if (response.status === 200) {
+        const encodedResponse = response.data; 
+  
+        if (!encodedResponse) {
+          console.error("The encoded_request is missing or undefined!");
+          return;
+        }
+  
+        const form = document.createElement('form');
+        form.method = 'POST';
+        // IdP SSO endpoint — keep this as your IdP Redirect endpoint
+        form.action = 'https://idp.bits-pilani.ac.in/idp/profile/SAML2/Redirect/SSO';
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'SAMLRequest';
+        hiddenInput.value = encodedResponse;
+        form.appendChild(hiddenInput);
+        document.body.appendChild(form);
+        form.submit();
+      } else {
+        console.error("Login failed with status:", response.status);
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+    }
+  };
+  
+
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId)
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' })
+      setIsMobileMenuOpen(false) // Close mobile menu after navigation
     }
+  }
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen)
   }
 
   // Enhanced scroll effects
@@ -201,21 +246,77 @@ const Home = () => {
 
   return (
     <div className="landing-container">
+      {/* Header Navigation */}
+      <nav className={`main-header ${isScrolled ? 'scrolled' : ''}`}>
+        <div className="header-content">
+          {/* Logo */}
+          <div className="logo">
+             <FontAwesomeIcon icon={faGraduationCap} className="logo-icon" />
+            <span className="logo-text">
+              <span className="spanda-bracket">[</span>
+              <span className="spanda-text">Spanda</span>
+              <span className="spanda-dot">.</span>
+              <span className="spanda-text">AI</span>
+              <span className="spanda-bracket">]</span>
+            </span>
+            <span className="logo-subtitle">Situated Learning</span>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="nav-links desktop-nav">
+            <button className="nav-link-home" onClick={() => scrollToSection('features')}>
+              Features
+            </button>
+            <button className="nav-link-home" onClick={() => scrollToSection('capabilities')}>
+              Capabilities
+            </button>
+            <button className="nav-link-home" onClick={() => scrollToSection('workflow')}>
+              Workflow
+            </button>
+            <button className="nav-link-home" onClick={() => scrollToSection('benefits')}>
+              Benefits
+            </button>
+          </div>
+
+          {/* Login Button and Mobile Menu Toggle */}
+          <div className="header-actions">
+            <button className="login-button" onClick={handleLogin}>
+              <FontAwesomeIcon icon={faSignInAlt} />
+              Login
+            </button>
+            <button 
+              className="mobile-menu-toggle"
+              onClick={toggleMobileMenu}
+            >
+              <FontAwesomeIcon icon={isMobileMenuOpen ? faTimes : faBars} />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Menu */}
+        <div className={`mobile-nav ${isMobileMenuOpen ? 'open' : ''}`}>
+          <button className="nav-link-home mobile" onClick={() => scrollToSection('features')}>
+            Features
+          </button>
+          <button className="nav-link-home mobile" onClick={() => scrollToSection('capabilities')}>
+            Capabilities
+          </button>
+          <button className="nav-link-home mobile" onClick={() => scrollToSection('workflow')}>
+            Workflow
+          </button>
+          <button className="nav-link-home mobile" onClick={() => scrollToSection('benefits')}>
+            Benefits
+          </button>
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <header className="hero">
         <div className="hero-content">
           <div className="hero-text">
             <div className="badge">
               <FontAwesomeIcon icon={faRocket} />
-              <span>Powered by </span>
-              <div className="spanda-logo small">
-                <span className="spanda-bracket">[</span>
-                <span className="spanda-text">Spanda</span>
-                <span className="spanda-dot">.</span>
-                <span className="spanda-text">AI</span>
-                <span className="spanda-bracket">]</span>
-              </div>
-              <span> Platform</span>
+              <span>Powered by AI-Driven Situated Learning</span>
             </div>
             <h1>AI-Powered Situated Learning System</h1>
             <p>
@@ -240,23 +341,15 @@ const Home = () => {
             </div>
             
             <div className="hero-actions">
-              <button className="cta-button primary" onClick={handleGetStarted}>
+              <button className="cta-button primary" onClick={handleLogin}>
                 <FontAwesomeIcon icon={faPlayCircle} />
                 Get Started
                 <FontAwesomeIcon icon={faArrowRight} className="arrow-icon" />
               </button>
-              <button className="cta-button secondary" onClick={handleTryDemo}>
+              <button className="cta-button secondary" >
                 <FontAwesomeIcon icon={faFileText} />
                 Generate Assignment
               </button>
-            </div>
-            
-            {/* Navigation Links */}
-            <div className="hero-nav-links">
-              <button className="nav-button" onClick={() => scrollToSection('features')}>Features</button>
-              <button className="nav-button" onClick={() => scrollToSection('capabilities')}>Capabilities</button>
-              <button className="nav-button" onClick={() => scrollToSection('workflow')}>Workflow</button>
-              <button className="nav-button" onClick={() => scrollToSection('benefits')}>Benefits</button>
             </div>
           </div>
           
