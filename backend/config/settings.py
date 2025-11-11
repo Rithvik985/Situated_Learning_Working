@@ -36,6 +36,12 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "your_openai_api_key_here")
     OPENAI_TEXT_MODEL: str = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
     OPENAI_VISION_MODEL: str = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")
+    LLM_BASE_URL: str = os.getenv("LLM_BASE_URL")
+    LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME")
+    VISION_LLM_BASE_URL: str = os.getenv("VISION_LLM_BASE_URL")
+    VISION_LLM_MODEL_NAME: str = os.getenv("VISION_LLM_MODEL_NAME")
+    LLM_API_KEY: str = os.getenv("LLM_API_KEY")
+    VISION_LLM_API_KEY: str = os.getenv("VISION_LLM_API_KEY")
 
     # File Processing
     MAX_FILE_SIZE: str = os.getenv("MAX_FILE_SIZE", "50MB")
