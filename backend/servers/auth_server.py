@@ -67,7 +67,7 @@ async def handle_logout(request: Request, response: Response):
     return {"success": True, "redirect_url": "https://elearn.bits-pilani.ac.in/user/"}
 
 
-@app.post("/sla/Shibboleth.sso/SAML2/POST")
+@app.post("/Shibboleth.sso/SAML2/POST")
 async def receive_saml_response(request: Request):
     form_data = await request.form()
     saml_response = form_data.get("SAMLResponse")
@@ -179,5 +179,5 @@ async def verify_session(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("auth_server:app", host="0.0.0.0", port=8024, reload=True)
+    uvicorn.run("auth_server:app", host="0.0.0.0", port=8008, reload=True)
 

@@ -3,10 +3,22 @@
  * Manages endpoints for the separated FastAPI servers
  */
 
+// API Configuration for all services
 const API_CONFIG = {
-  // Upload Server (Port 8020)
+  // Faculty Service
+  FACULTY: {
+    BASE_URL: '/api/faculty',
+    ENDPOINTS: {
+      PENDING_SUBMISSIONS: '/pending-submissions',
+      EVALUATE_SUBMISSION: '/pending-submissions',
+      FACULTY_EVALUATION_UPDATE: '/evaluate',
+      RUBRIC: '/rubric',
+    }
+  },
+
+  // Upload Service
   UPLOAD: {
-    BASE_URL: '/uploadAss',
+    BASE_URL: '/upload',
     ENDPOINTS: {
       UPLOAD: '/past-assignments',
       ASSIGNMENTS: '/assignments',
@@ -16,7 +28,7 @@ const API_CONFIG = {
     }
   },
 
-  // Generation Server (Port 8021)
+  // Generation Service
   GENERATION: {
     BASE_URL: '/generation',
     ENDPOINTS: {
@@ -24,39 +36,39 @@ const API_CONFIG = {
       GENERATE_PROGRESSIVE: '/generate-progressive',
       DOMAINS: '/domains',
       EDIT_ASSIGNMENT: '/assignments',
-      RUBRIC_GENERATE: '/rubric/generate',
       RUBRIC_EDIT: '/rubric',
       RUBRIC_DOWNLOAD: '/rubric',
       SAVE_ASSIGNMENT: '/assignments/save',
       DOWNLOAD_ASSIGNMENT: '/assignments',
       DOWNLOAD_MULTIPLE: '/assignments/download',
       HEALTH: '/health',
-      STATUS: '/api/status'
+      STATUS: '/status'
     }
   },
 
-  // Evaluation Server (Port 8022)
+  // Evaluation Service
   EVALUATION: {
     BASE_URL: '/evaluation',
     ENDPOINTS: {
       COURSES: '/courses',
       COURSE_FILTERS: '/courses',
-      ASSIGNMENTS: '/courses',
-      RUBRICS: '/assignments',
-      RUBRIC_GENERATE: '/assignments',
-      RUBRIC_EDIT: '/rubric',
+      ASSIGNMENTS: '/assignments',
+      RUBRICS: '/rubrics',
+      RUBRIC_EDIT: '/rubrics',
       SUBMIT: '/submissions/upload',
-      EVALUATE: '/evaluate',
+      STUDENT_SWOT: '/student/swot',
+      // FACULTY_EVALUATE: '/faculty/evaluate',
+      // PENDING_SUBMISSIONS: '/faculty/pending',
       PROGRESS: '/status',
       RESULTS: '/assignments',
       REVIEW: '/submissions',
       REPORT: '/assignments',
       HEALTH: '/health',
-      STATUS: '/api/status'
+      STATUS: '/status'
     }
   },
 
-  // Analytics Server (Port 8023)
+  // Analytics Service
   ANALYTICS: {
     BASE_URL: '/analytics',
     ENDPOINTS: {
@@ -67,12 +79,62 @@ const API_CONFIG = {
       COURSES: '/courses',
       EXPORT: '/export',
       HEALTH: '/health',
-      STATUS: '/api/status'
+      STATUS: '/status'
+    }
+  },
+
+  // Student Service
+  STUDENT: {
+    BASE_URL: '/api/student',
+    ENDPOINTS: {
+      CONTEXT_OPTIONS: '/context-options',
+      GENERATE_QUESTIONS: '/questions/generate',
+      SELECT_QUESTION: '/questions',
+      STATUS: '/questions',
+      SUBMIT: '/submissions',
+      SAVE_ASSIGNMENT: '/assignments/save',
+      LIST_ASSIGNMENTS: '/assignments',
+      COURSES: '/courses',
+      AI_CHECK: '/ai-check',
+      HEALTH: '/health',
+    }
+  },
+
+    // Faculty Service
+  FACULTY: {
+    BASE_URL: '/api/faculty',
+    ENDPOINTS: {
+      QUESTIONS: '/questions',
+      FINALIZE: '/finalize',
+      COURSES: '/courses',
+      STUDENTS: '/students',
+      EVALUATION: '/evaluation',
+      FACULTY_EVALUATION_UPDATE: '/evaluation/update',  // Add this for criterion updates
+      HEALTH: '/health',
+      STATUS: '/status',
+      FACULTY_STUDENTS: '/students',
+      FACULTY_APPROVE_QUESTION: '/questions',
+      FACULTY_QUESTIONS_BY_STUDENT: '/questions/student',
+      GET_SUBMISSION: '/submissions',
+
+
+      // core endpoints used by frontend
+      GET_RUBRIC: '/rubric',
+      PENDING_SUBMISSIONS: '/pending-submissions', // GET /api/faculty/pending-submissions
+      EVALUATE_SUBMISSION: '/pending-submissions',  // will append /{id}/evaluate on the client
+      FACULTY_EVALUATION_UPDATE: '/evaluate',  // for criterion score updates - matches backend route
+      DETECT_AI: '/submissions'  // for AI detection - will append /{id}/detect-ai on the client
     }
   }
+
 };
 
-// Helper function to get full URL for an endpoint
+/**
+ * Helper function to construct the full API URL for a given server and endpoint
+ * @param {string} server - The server identifier (e.g., 'FACULTY', 'STUDENT')
+ * @param {string} endpoint - The endpoint identifier (e.g., 'QUESTIONS', 'STATUS')
+ * @returns {string} The complete API URL
+ */
 export const getApiUrl = (server, endpoint) => {
   const serverConfig = API_CONFIG[server];
   if (!serverConfig) {
@@ -87,7 +149,11 @@ export const getApiUrl = (server, endpoint) => {
   return `${serverConfig.BASE_URL}${endpointPath}`;
 };
 
-// Helper function to get base URL for a server
+/**
+ * Helper function to get the base URL for a server
+ * @param {string} server - The server identifier
+ * @returns {string} The base URL for the server
+ */
 export const getBaseUrl = (server) => {
   const serverConfig = API_CONFIG[server];
   if (!serverConfig) {
@@ -96,15 +162,17 @@ export const getBaseUrl = (server) => {
   return serverConfig.BASE_URL;
 };
 
-// Server names for easy reference
+// Export for use in components
 export const SERVERS = {
   UPLOAD: 'UPLOAD',
   GENERATION: 'GENERATION',
   EVALUATION: 'EVALUATION',
-  ANALYTICS: 'ANALYTICS'
+  ANALYTICS: 'ANALYTICS',
+  STUDENT: 'STUDENT',
+  FACULTY: 'FACULTY'
 };
 
-// Endpoint names for easy reference
+// Export the endpoints
 export const ENDPOINTS = {
   // Upload endpoints
   UPLOAD_ASSIGNMENT: 'UPLOAD',
@@ -117,19 +185,38 @@ export const ENDPOINTS = {
   GENERATE_PROGRESSIVE: 'GENERATE_PROGRESSIVE',
   GET_DOMAINS: 'DOMAINS',
   EDIT_ASSIGNMENT: 'EDIT_ASSIGNMENT',
-  RUBRIC_GENERATE: 'RUBRIC_GENERATE',
   RUBRIC_EDIT: 'RUBRIC_EDIT',
   RUBRIC_DOWNLOAD: 'RUBRIC_DOWNLOAD',
   SAVE_ASSIGNMENT: 'SAVE_ASSIGNMENT',
   DOWNLOAD_ASSIGNMENT: 'DOWNLOAD_ASSIGNMENT',
   DOWNLOAD_MULTIPLE: 'DOWNLOAD_MULTIPLE',
   
+  // Student workflow endpoints
+  CONTEXT_OPTIONS: 'CONTEXT_OPTIONS',
+  GENERATE_QUESTIONS: 'GENERATE_QUESTIONS',
+  SELECT_QUESTION: 'SELECT_QUESTION',
+  STATUS: 'STATUS',
+  SUBMIT: 'SUBMIT',
+  LIST_ASSIGNMENTS: 'LIST_ASSIGNMENTS',
+  STUDENT_COURSES: 'COURSES',
+  AI_CHECK: 'AI_CHECK',
+
+  // Faculty endpoints
+  FACULTY_APPROVE_QUESTION: 'QUESTIONS',
+  FACULTY_FINALIZE: 'FINALIZE',
+  FACULTY_COURSES: 'COURSES',
+  FACULTY_STUDENTS: 'STUDENTS',
+  FACULTY_EVALUATION_DATA: 'EVALUATION',
+  FACULTY_EVALUATION_UPDATE: 'EVALUATE_CRITERION',
+  FACULTY_STUDENTS: 'FACULTY_STUDENTS',
+  FACULTY_APPROVE_QUESTION: 'FACULTY_APPROVE_QUESTION',
+  FACULTY_QUESTIONS_BY_STUDENT: 'FACULTY_QUESTIONS_BY_STUDENT',
+  
   // Evaluation endpoints
   EVALUATION_COURSES: 'COURSES',
   EVALUATION_COURSE_FILTERS: 'COURSE_FILTERS',
   EVALUATION_ASSIGNMENTS: 'ASSIGNMENTS',
   EVALUATION_RUBRICS: 'RUBRICS',
-  EVALUATION_RUBRIC_GENERATE: 'RUBRIC_GENERATE',
   EVALUATION_RUBRIC_EDIT: 'RUBRIC_EDIT',
   SUBMIT_EVALUATION: 'SUBMIT',
   EVALUATE_SUBMISSION: 'EVALUATE',

@@ -15,12 +15,135 @@ from utils.llm_config import llm_config
 
 logger = logging.getLogger(__name__)
 
+# Situated Learning Rubric Definition
+# Situated Learning Rubric Definition
+SITUATED_LEARNING_RUBRIC = {
+    "name": "Situated_Learning_Rubric",
+    "dimensions": [
+        {
+            "name": "Workplace Context Analysis",
+            "criteria_output": {
+                "Situational Assessment": {
+                    "Score 4": "Provides comprehensive, insightful analysis of workplace context with relevant details",
+                    "Score 3": "Clearly describes workplace context with sufficient detail to frame the application",
+                    "Score 2": "Basic description of workplace context with some gaps in relevant details",
+                    "Score 1": "Vague or insufficient description of workplace context"
+                },
+                "Stakeholder Consideration": {
+                    "Score 4": "Thoroughly analyzes how solution impacts various stakeholders with specific insights",
+                    "Score 3": "Identifies relevant stakeholders and considers how solution affects them",
+                    "Score 2": "Limited consideration of stakeholders and their needs",
+                    "Score 1": "Minimal or no consideration of stakeholders"
+                },
+                "Organizational Constraints": {
+                    "Score 4": "Sophisticated analysis of organizational constraints with creative approaches to navigate limitations",
+                    "Score 3": "Identifies relevant constraints and adapts solution accordingly",
+                    "Score 2": "Acknowledges some constraints but with limited adaptation",
+                    "Score 1": "Fails to identify significant constraints that impact implementation"
+                }
+            }
+        },
+        {
+            "name": "Solution Development and Implementation",
+            "criteria_output": {
+                "Solution Viability": {
+                    "Score 4": "Develops innovative, practical solution with clear implementation path",
+                    "Score 3": "Proposes realistic solution with reasonable implementation considerations",
+                    "Score 2": "Solution has some practical elements but implementation path is unclear",
+                    "Score 1": "Solution is impractical or disconnected from workplace realities"
+                },
+                "Technical Accuracy": {
+                    "Score 4": "Solution demonstrates mastery of technical aspects with no errors",
+                    "Score 3": "Solution is technically sound with minor errors that don't impact effectiveness",
+                    "Score 2": "Some technical misunderstandings that partially affect solution quality",
+                    "Score 1": "Significant technical errors that undermine solution viability"
+                },
+                "Resource Utilization": {
+                    "Score 4": "Optimizes available resources with creative leveraging of existing systems",
+                    "Score 3": "Appropriately utilizes available resources with reasonable efficiency",
+                    "Score 2": "Identifies necessary resources but utilization plan has inefficiencies",
+                    "Score 1": "Inadequate consideration of resource requirements"
+                }
+            }
+        },
+        {
+            "name": "Critical Reflection and Learning",
+            "criteria_output": {
+                "Self-Assessment": {
+                    "Score 4": "Demonstrates exceptional insight into personal learning with specific examples",
+                    "Score 3": "Accurately assesses strengths and limitations of approach with examples",
+                    "Score 2": "Basic self-assessment with limited examples",
+                    "Score 1": "Superficial or absent self-assessment"
+                },
+                "Alternative Approaches": {
+                    "Score 4": "Thoroughly examines alternative approaches with sophisticated analysis of trade-offs",
+                    "Score 3": "Identifies viable alternatives and discusses their relative merits",
+                    "Score 2": "Limited exploration of alternatives with superficial analysis",
+                    "Score 1": "Minimal or no consideration of alternative approaches"
+                },
+                "Lessons for Future Application": {
+                    "Score 4": "Articulates specific, actionable insights for future applications with depth",
+                    "Score 3": "Identifies meaningful lessons for future scenarios",
+                    "Score 2": "Basic lessons identified with limited specificity",
+                    "Score 1": "Few or no meaningful lessons articulated"
+                }
+            }
+        },
+        {
+            "name": "Communication and Documentation",
+            "criteria_output": {
+                "Clarity and Organization": {
+                    "Score 4": "Exceptionally clear, logically organized with professional presentation",
+                    "Score 3": "Clear, well-organized with appropriate structure",
+                    "Score 2": "Generally understandable but with some organizational issues",
+                    "Score 1": "Difficult to follow with significant organizational problems"
+                },
+                "Technical Language": {
+                    "Score 4": "Precise use of technical terminology with sophisticated industry-appropriate language",
+                    "Score 3": "Accurate use of technical terminology appropriate to the field",
+                    "Score 2": "Generally correct terminology with occasional misuse",
+                    "Score 1": "Frequent misuse of technical terminology"
+                },
+                "Supporting Evidence": {
+                    "Score 4": "Comprehensive evidence with excellent integration of workplace data",
+                    "Score 3": "Sufficient relevant evidence to support claims",
+                    "Score 2": "Limited evidence with some relevance to claims",
+                    "Score 1": "Minimal or irrelevant evidence"
+                }
+            }
+        },
+        {
+            "name": "Professional Impact and Value",
+            "criteria_output": {
+                "Workplace Value": {
+                    "Score 4": "Solution offers significant potential value with specific benefits to organization",
+                    "Score 3": "Solution provides clear value to workplace with identifiable benefits",
+                    "Score 2": "Solution offers some value but benefits are limited or vague",
+                    "Score 1": "Limited or no clear value to workplace"
+                },
+                "Sustainability": {
+                    "Score 4": "Thoroughly addresses long-term sustainability with implementation plan",
+                    "Score 3": "Considers sustainability factors with reasonable maintenance approach",
+                    "Score 2": "Limited consideration of sustainability factors",
+                    "Score 1": "No consideration of long-term sustainability"
+                },
+                "Knowledge Transfer": {
+                    "Score 4": "Demonstrates exceptional ability to translate academic knowledge to workplace with potential to influence others",
+                    "Score 3": "Effectively transfers academic knowledge to workplace context",
+                    "Score 2": "Basic transfer of knowledge with limited influence",
+                    "Score 1": "Minimal evidence of knowledge transfer"
+                }
+            }
+        }
+    ]
+}
+
 @dataclass
 class EvaluationResult:
     """Data class to store evaluation results for each question"""
     category: str
     question: str
-    score: int  # 0-5 scale
+    score: int  # 1-4 scale per rubric
     reasoning: Optional[str] = None
 
 @dataclass
@@ -37,8 +160,8 @@ class CriterionEvaluation:
 class SubmissionEvaluation:
     """Complete evaluation result for a submission"""
     submission_id: str
-    overall_score: float  # Out of 20
-    total_questions: int
+    overall_score: float  # Out of 72
+    total_criteria: int   # Total number of evaluation criteria
     criterion_evaluations: List[CriterionEvaluation]
     overall_feedback: str
     processing_time: float
@@ -62,7 +185,7 @@ class EvaluationService:
         self.use_openai = llm_config.use_openai
         
         # Initialize OpenAI-compatible client
-        if self.use_openai:
+        if False:
             self.client = OpenAI(
                 api_key=llm_config.openai_api_key
             )
@@ -70,9 +193,10 @@ class EvaluationService:
             # For vLLM, use the base URL without /chat/completions suffix
             vllm_base_url = llm_config.text_model_url.replace('/chat/completions', '')
             self.client = OpenAI(
-                base_url=vllm_base_url,
-                api_key="EMPTY"  # vLLM doesn't require real API keys
+                base_url=os.getenv("LLM_BASE_URL", vllm_base_url),
+                api_key=os.getenv("LLM_API_KEY", "73a03f5d-59b3-4ef2-8bb72aed4a51")  # vLLM doesn't require real API keys
             )
+
         
         logger.info(f"Evaluation service initialized with {llm_config.get_config_info()['provider']} model: {self.model} at {self.base_url}")
     
@@ -88,10 +212,21 @@ class EvaluationService:
         Returns:
             Formatted prompt for LLM
         """
-        prompt = f"""You are an expert academic evaluator specializing in situated learning assignments. Your task is to evaluate a student submission against a specific rubric criterion using a 5-point scale with detailed reasoning.
+        # Format rubric for prompt
+        rubric_text = "RUBRIC (Situated_Learning_Rubric):\n"
+        for dimension in SITUATED_LEARNING_RUBRIC["dimensions"]:
+            rubric_text += f"\n{dimension['name']}:\n"
+            for criterion, scores in dimension['criteria_output'].items():
+                rubric_text += f"\nCriterion: {criterion}\n"
+                rubric_text += "Score Descriptors:\n"
+                for score, description in scores.items():
+                    rubric_text += f"  - {score}: {description}\n"
 
-SITUATED LEARNING CONTEXT:
-Situated learning assignments require students to apply theoretical knowledge to real-world scenarios, demonstrating practical understanding and professional application.
+        prompt = f"""
+You are an academic evaluator specializing in situated learning assessment. 
+You will evaluate a student submission using the following structured rubric:
+
+{rubric_text}
 
 ASSIGNMENT DESCRIPTION:
 {assignment_description}
@@ -99,32 +234,25 @@ ASSIGNMENT DESCRIPTION:
 STUDENT SUBMISSION:
 {submission_text}
 
-EVALUATION CRITERION:
-{question}
+EVALUATION TARGET:
+You must evaluate the submission against the following rubric dimension or specific sub-criterion:
+{question}  # e.g. "Conceptual Understanding and Application > Depth of Application"
 
-SCORING SCALE (0-5):
-5 - EXCELLENT: Exceeds expectations with comprehensive understanding, detailed analysis, strong evidence, and professional-level application
-4 - GOOD: Meets expectations with solid understanding, adequate analysis, relevant evidence, and appropriate application
-3 - SATISFACTORY: Basic understanding demonstrated with some analysis, limited evidence, and minimal application
-2 - NEEDS IMPROVEMENT: Partial understanding with weak analysis, insufficient evidence, or unclear application
-1 - POOR: Minimal understanding with little to no analysis, missing evidence, or inappropriate application
-0 - MISSING: No evidence of addressing this criterion or completely incorrect response
+EVALUATION PROCESS:
+1. The evaluation target shows which dimension and specific criterion to evaluate (e.g., "Conceptual Understanding > Depth of Application").
+2. Find this specific criterion in the rubric and review its scoring descriptors.
+3. Compare the student's submission against the performance levels described in the rubric (Score 4 through Score 1).
+4. Choose the score that best matches the performance level descriptors.
+5. Justify your score by citing specific evidence from the submission.
 
-EVALUATION INSTRUCTIONS:
-1. Analyze the submission specifically for situated learning elements (real-world application, practical context, professional relevance)
-2. Look for evidence of theoretical knowledge being applied to practical situations
-3. Assess the quality of analysis, reasoning, and professional judgment demonstrated
-4. Consider the depth of understanding shown through examples, calculations, or case applications
-5. Evaluate the clarity and professionalism of communication
-6. Be consistent and fair while maintaining academic rigor
+STRICT OUTPUT FORMAT:
+SCORE: [1-4]  # Must be a whole number matching the rubric's score levels
+REASONING: [2-3 sentences citing specific evidence from the submission and referencing the rubric descriptors]
 
-RESPONSE FORMAT (STRICTLY FOLLOW):
-SCORE: [0-5]
-REASONING: [Provide 2-3 sentences explaining the score with specific evidence from the submission, focusing on what was done well and what could be improved]
-
-Example response:
-SCORE: 4
-REASONING: The submission demonstrates solid understanding of energy audit principles with clear methodology and relevant calculations. The analysis includes practical considerations for implementation and shows good professional judgment. However, the cost-benefit analysis could be more detailed and the timeline for implementation needs more specificity."""
+Example:
+SCORE: 3
+REASONING: The submission demonstrates effective application of theoretical concepts to the workplace scenario, showing clear adaptation of course principles to practical situations (Score 3 descriptor). While the application is appropriate and contextual, it lacks the sophisticated integration and nuanced understanding required for Score 4.
+"""
 
         return prompt
     
@@ -224,8 +352,8 @@ REASONING: The submission demonstrates solid understanding of energy audit princ
                 # Use entire response as reasoning if no proper format
                 reasoning = response_text[:200] + ("..." if len(response_text) > 200 else "")
             
-            # Ensure score is within bounds
-            score = max(0, min(5, score))
+            # Ensure score is within bounds and is a whole number
+            score = max(1, min(4, round(score)))  # Force whole number between 1-4
             
             # Truncate reasoning if too long
             if len(reasoning) > 300:
@@ -248,103 +376,123 @@ REASONING: The submission demonstrates solid understanding of energy audit princ
             submission_id: Unique identifier for the submission
             
         Returns:
-            Complete evaluation result normalized to 20 points
+            Complete evaluation result with raw scores (out of 72 total points)
         """
         start_time = time.time()
         
         try:
-            # Get rubric structure
-            criteria = rubric.get('rubrics', [])
-            total_questions = sum(len(category['questions']) for category in criteria)
-            total_possible_score = total_questions * 5  # Each question worth 5 points
+            # Get rubric structure from SITUATED_LEARNING_RUBRIC
+            dimensions = SITUATED_LEARNING_RUBRIC['dimensions']
+            total_criteria = sum(len(dimension['criteria_output']) for dimension in dimensions)
+            total_possible_score = total_criteria * 4  # Each criterion worth 4 points (72 total)
             
             logger.info(f"Starting evaluation of submission {submission_id}")
-            logger.info(f"Rubric has {len(criteria)} criteria with {total_questions} total questions")
-            logger.info(f"Total possible raw score: {total_possible_score} points")
+            logger.info(f"Rubric has {len(dimensions)} dimensions with {total_criteria} total criteria")
+            logger.info(f"Total possible raw score: {total_possible_score} points (18 criteria × 4 points)")
             
             criterion_evaluations = []
             
-            # Evaluate each criterion
-            for criterion_index, category in enumerate(criteria, 1):
-                category_name = category['category']
-                questions = category['questions']
-                logger.info(f"Evaluating criterion {criterion_index}/{len(criteria)}: {category_name}")
+            # Evaluate each dimension and its criteria
+            for dimension_index, dimension in enumerate(dimensions, 1):
+                dimension_name = dimension['name']
+                criteria = dimension['criteria_output']
+                logger.info(f"Evaluating dimension {dimension_index}/{len(dimensions)}: {dimension_name}")
                 
-                # Evaluate all questions in this criterion
-                question_results = []
-                category_total_score = 0
+                # Evaluate all criteria in this dimension
+                criterion_results = []
+                dimension_total_score = 0
                 
-                for question_index, question in enumerate(questions, 1):
-                    logger.info(f"  Question {question_index}/{len(questions)}: {question[:60]}...")
+                for criterion_name, criterion_scores in criteria.items():
+                    logger.info(f"  Evaluating criterion: {criterion_name}")
                     
                     score, reasoning = self.evaluate_question(
-                        assignment_description, submission_text, question
+                        assignment_description, submission_text, f"{dimension_name} > {criterion_name}"
                     )
                     
                     result = EvaluationResult(
-                        category=category_name,
-                        question=question,
+                        category=dimension_name,
+                        question=criterion_name,
                         score=score,
                         reasoning=reasoning
                     )
-                    question_results.append(result)
-                    category_total_score += score
+                    criterion_results.append(result)
+                    dimension_total_score += score
                     
                     # Brief pause to avoid rate limiting
                     time.sleep(0.2)
                 
-                # Calculate criterion scores
-                category_max_score = len(questions) * 5
-                category_percentage = (category_total_score / category_max_score) * 100 if category_max_score > 0 else 0
+                # Calculate dimension scores
+                dimension_max_score = len(criteria) * 4  # Each criterion max is 4
+                dimension_percentage = (dimension_total_score / dimension_max_score) * 100 if dimension_max_score > 0 else 0
                 
-                # Generate criterion-specific feedback
-                criterion_feedback = self.generate_criterion_feedback(
-                    category_name, question_results, category_percentage, assignment_description
+                # Generate dimension-specific feedback
+                dimension_feedback = self.generate_criterion_feedback(
+                    dimension_name, criterion_results, dimension_percentage, assignment_description
                 )
                 
-                criterion_eval = CriterionEvaluation(
-                    category=category_name,
-                    score=category_total_score,
-                    max_score=category_max_score,
-                    percentage=category_percentage,
-                    feedback=criterion_feedback,
-                    question_results=question_results
+                dimension_eval = CriterionEvaluation(
+                    category=dimension_name,
+                    score=dimension_total_score,
+                    max_score=dimension_max_score,
+                    percentage=dimension_percentage,
+                    feedback=dimension_feedback,
+                    question_results=criterion_results
                 )
-                criterion_evaluations.append(criterion_eval)
+                criterion_evaluations.append(dimension_eval)
                 
-                logger.info(f"  {category_name}: {category_total_score}/{category_max_score} ({category_percentage:.1f}%)")
+                logger.info(f"  {dimension_name}: {dimension_total_score}/{dimension_max_score} ({dimension_percentage:.1f}%)")
             
-            # Calculate overall scores
+            # Calculate overall scores (raw sum of all criterion scores)
             total_raw_score = sum(ce.score for ce in criterion_evaluations)
             
-            # Normalize to 20 points
-            normalized_score = (total_raw_score / total_possible_score) * 20 if total_possible_score > 0 else 0
-            normalized_score = round(normalized_score, 2)
+            # No normalization - use raw score out of 72
+            final_score = round(total_raw_score, 2)
             
-            # Generate overall feedback
-            overall_feedback = self.generate_overall_feedback(criterion_evaluations, normalized_score)
+            # Log detailed scoring information
+            logger.info(f"=== Detailed Evaluation Scores for {submission_id} ===")
+            logger.info(f"Raw total score: {total_raw_score}")
+            logger.info(f"Final score: {final_score}/72")
+            logger.info("Individual criterion scores:")
+            for ce in criterion_evaluations:
+                logger.info(f"- {ce.category}: {ce.score}/{ce.max_score} ({ce.percentage:.1f}%)")
+            
+            # Generate overall feedback using raw score
+            overall_feedback = self.generate_overall_feedback(criterion_evaluations, final_score)
             
             processing_time = time.time() - start_time
             
+            # Create evaluation metadata with detailed dimension info
+            evaluation_metadata = {
+                'total_raw_score': total_raw_score,
+                'total_possible_score': total_possible_score,
+                'dimensions_count': len(dimensions),
+                'criteria_per_dimension': [len(dim['criteria_output']) for dim in dimensions],
+                'model_used': self.model,
+                'evaluation_timestamp': time.time(),
+                'dimension_details': [
+                    {
+                        'name': ce.category,
+                        'score': ce.score,
+                        'max_score': ce.max_score,
+                        'percentage': ce.percentage
+                    }
+                    for ce in criterion_evaluations
+                ]
+            }
+            
             evaluation = SubmissionEvaluation(
                 submission_id=submission_id,
-                overall_score=normalized_score,
-                total_questions=total_questions,
+                overall_score=final_score,
+                total_criteria=total_criteria,
                 criterion_evaluations=criterion_evaluations,
                 overall_feedback=overall_feedback,
                 processing_time=processing_time,
-                evaluation_metadata={
-                    'total_raw_score': total_raw_score,
-                    'total_possible_score': total_possible_score,
-                    'normalization_factor': 20 / total_possible_score if total_possible_score > 0 else 0,
-                    'criteria_count': len(criteria),
-                    'model_used': self.model,
-                    'evaluation_timestamp': time.time()
-                }
+                evaluation_metadata=evaluation_metadata
             )
             
+            logger.info("SubmissionEvaluation object created successfully")
             logger.info(f"Completed evaluation of submission {submission_id} in {processing_time:.2f}s")
-            logger.info(f"Final score: {normalized_score}/20 ({(normalized_score/20)*100:.1f}%)")
+            logger.info(f"Final score: {final_score}/72 ({(final_score/72)*100:.1f}%)")
             
             return evaluation
             
@@ -385,7 +533,9 @@ REASONING: The submission demonstrates solid understanding of energy audit princ
             feedback_points = []
             
             # Point 1: Performance summary
-            feedback_points.append(f"**{performance_level} Performance ({category_percentage:.0f}%)**: {category_name} demonstrates {performance_level.lower()} understanding with room for targeted improvements.")
+            criterion_scores = [f"{q.question}: {q.score}/4" for q in question_results]
+            scores_summary = " | ".join(criterion_scores)
+            feedback_points.append(f"**{performance_level} ({scores_summary})**: {category_name} demonstrates {performance_level.lower()} understanding.")
             
             # Point 2: Strengths (if any high scores)
             if high_scores:
@@ -424,19 +574,19 @@ REASONING: The submission demonstrates solid understanding of energy audit princ
             logger.error(f"Error generating criterion feedback: {e}")
             return f"**{category_name} Feedback**: Score of {category_percentage:.0f}% indicates {'good' if category_percentage >= 70 else 'developing'} performance. Focus on providing more detailed analysis and stronger evidence to improve in this area."
     
-    def generate_overall_feedback(self, criterion_evaluations: List[CriterionEvaluation], normalized_score: float) -> str:
+    def generate_overall_feedback(self, criterion_evaluations: List[CriterionEvaluation], raw_score: float) -> str:
         """
         Generate overall feedback summarizing performance across all criteria
         
         Args:
             criterion_evaluations: List of criterion evaluation results
-            normalized_score: Overall score normalized to 20 points
+            raw_score: Overall raw score out of 72 points
             
         Returns:
             Overall feedback text
         """
         try:
-            percentage = (normalized_score / 20) * 100
+            percentage = (raw_score / 72) * 100  # Score out of 72 possible points
             
             # Determine overall performance level
             if percentage >= 85:
@@ -452,6 +602,11 @@ REASONING: The submission demonstrates solid understanding of energy audit princ
                 performance_level = "Needs Improvement"
                 performance_description = "foundational gaps requiring focused development"
             
+            logger.info(f"Generating overall feedback:")
+            logger.info(f"Raw score: {raw_score}/72")
+            logger.info(f"Percentage: {percentage:.1f}%")
+            logger.info(f"Performance level: {performance_level}")
+            
             # Identify strongest and weakest criteria
             sorted_criteria = sorted(criterion_evaluations, key=lambda x: x.percentage, reverse=True)
             strongest_criterion = sorted_criteria[0] if sorted_criteria else None
@@ -460,24 +615,22 @@ REASONING: The submission demonstrates solid understanding of energy audit princ
             feedback_parts = []
             
             # Overall performance summary
-            feedback_parts.append(f"**Overall Performance**: {performance_level} ({normalized_score:.1f}/20, {percentage:.0f}%) - Your submission demonstrates {performance_description} of situated learning principles.")
-            
+            feedback_parts.append(f"**Overall Performance**: {performance_level} ({raw_score:.1f}/72, {percentage:.0f}%) - Your submission demonstrates {performance_description} of situated learning principles.")
+
             # Highlight strongest area
             if strongest_criterion and strongest_criterion.percentage >= 70:
                 feedback_parts.append(f"**Key Strength**: {strongest_criterion.category} shows strong performance ({strongest_criterion.percentage:.0f}%), indicating good mastery of this area.")
             
             # Highlight area needing most attention
             if weakest_criterion and weakest_criterion.percentage < 70:
-                feedback_parts.append(f"**Priority Focus**: {weakest_criterion.category} requires attention ({weakest_criterion.percentage:.0f}%) to strengthen overall performance.")
-            
-            # Professional development note
+                feedback_parts.append(f"**Priority Focus**: {weakest_criterion.category} requires attention ({weakest_criterion.percentage:.0f}%) to strengthen overall performance.")            # Professional development note
             feedback_parts.append("**Professional Development**: Continue building connections between theoretical concepts and real-world applications to enhance your situated learning outcomes.")
             
             return " ".join(feedback_parts)
             
         except Exception as e:
             logger.error(f"Error generating overall feedback: {e}")
-            return f"**Overall Performance**: Score of {normalized_score:.1f}/20 ({((normalized_score/20)*100):.0f}%). Review detailed criterion feedback for specific improvement areas."
+            return f"**Overall Performance**: Score of {raw_score:.1f}/72 ({(raw_score/72*100):.0f}%). Review detailed criterion feedback for specific improvement areas."
     
     def test_connection(self) -> Dict[str, Any]:
         """

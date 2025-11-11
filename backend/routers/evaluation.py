@@ -22,19 +22,314 @@ from database.models import (
     GeneratedAssignment as DBGeneratedAssignment,
     AssignmentRubric as DBAssignmentRubric,
     StudentSubmission as DBStudentSubmission,
+    FacultyEvaluationResult as DBFacultyEvaluation,
+    StudentSWOTResult as DBStudentSWOT,
     EvaluationResult as DBEvaluationResult,
     Course as DBCourse
 )
 from database.repository import get_db
+from services.rubric_parser import fetch_rubric
 from services.submission_processor import SubmissionProcessingService
 from storage.minio_client import minio_client
 
 # Configure logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('evaluation_server.router')
+logger.setLevel(logging.DEBUG)
+
 router = APIRouter()
 
 # Initialize submission processing service
 submission_processor = SubmissionProcessingService()
+
+# Pydantic models for SWOT analysis
+class SWOTAnalysis(BaseModel):
+    strengths: List[str]
+    weaknesses: List[str]
+    opportunities: List[str]
+    threats: List[str]
+    suggestions: List[str]
+
+class SWOTRequest(BaseModel):
+    student_id: str
+    submission_id: str
+    content: str
+
+class FacultyEvaluation(BaseModel):
+    submission_id: str
+    rubric_scores: Dict[str, float]
+    comments: Optional[str] = None
+
+class SubmissionSummary(BaseModel):
+    submission_id: str
+    student_id: str
+    student_name: str
+    submission_date: datetime
+    content: str
+
+@router.post("/student/swot", response_model=SWOTAnalysis)
+async def create_swot_analysis(request: SWOTRequest, db: Session = Depends(get_db)):
+    """
+    Create a SWOT analysis for a student submission
+    """
+    try:
+        # Validate submission exists
+        submission = db.query(DBStudentSubmission).filter(
+            DBStudentSubmission.id == request.submission_id,
+            DBStudentSubmission.student_id == request.student_id
+        ).first()
+        
+        if not submission:
+            raise HTTPException(status_code=404, detail="Submission not found")
+            
+        # Generate SWOT analysis using the submission processor
+        swot_analysis = submission_processor.generate_swot_analysis(request.content)
+        
+        # Create SWOT analysis result
+        swot_result = DBStudentSWOT(
+            id=str(uuid.uuid4()),
+            submission_id=submission_id,
+            strengths=swot_analysis.strengths,
+            weaknesses=swot_analysis.weaknesses,
+            opportunities=swot_analysis.opportunities,
+            threats=swot_analysis.threats,
+            suggestions=swot_analysis.suggestions
+        )
+        
+        # Add and commit the SWOT analysis
+        db.add(swot_result)
+        db.commit()
+        
+        return swot_analysis
+        
+    except Exception as e:
+        logger.error(f"Error creating SWOT analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error creating SWOT analysis")
+
+@router.get("/faculty/pending", response_model=List[SubmissionSummary])
+async def get_pending_submissions(course_id: str, db: Session = Depends(get_db)):
+    """
+    Get all pending submissions for faculty evaluation
+    """
+    try:
+        submissions = db.query(DBStudentSubmission).filter(
+            DBStudentSubmission.course_id == course_id,
+            DBStudentSubmission.evaluation_status == "pending"
+        ).all()
+        
+        return [SubmissionSummary(
+            submission_id=sub.id,
+            student_id=sub.student_id,
+            student_name=sub.student_name,
+            submission_date=sub.submission_date,
+            content=sub.content
+        ) for sub in submissions]
+        
+    except Exception as e:
+        logger.error(f"Error fetching pending submissions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error fetching pending submissions")
+
+@router.post("/faculty/evaluate/{submission_id}")
+async def evaluate_submission(
+    submission_id: str,
+    evaluation: FacultyEvaluation,
+    db: Session = Depends(get_db)
+):
+    """
+    Faculty evaluation of a student submission using rubric
+    """
+    try:
+        # Get submission
+        submission = db.query(DBStudentSubmission).filter(
+            DBStudentSubmission.id == submission_id
+        ).first()
+        
+        if not submission:
+            raise HTTPException(status_code=404, detail="Submission not found")
+            
+        # Create faculty evaluation result
+        faculty_evaluation = DBFacultyEvaluation(
+            id=str(uuid.uuid4()),
+            submission_id=submission_id,
+            rubric_scores=evaluation.rubric_scores,
+            comments=evaluation.comments,
+            evaluation_date=datetime.utcnow()
+        )
+        
+        # Update submission status
+        submission.evaluation_status = "completed"
+        
+        # Save to database
+        db.add(faculty_evaluation)
+        db.commit()
+        
+        return {"message": "Evaluation completed successfully"}
+        
+    except Exception as e:
+        logger.error(f"Error evaluating submission: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error evaluating submission")
+    submission_text: str
+
+class SWOTResponse(BaseModel):
+    submission_id: str
+    analysis: SWOTAnalysis
+    iteration: int
+    final: bool
+
+# Pydantic models for rubric evaluation
+class RejectionRequest(BaseModel):
+    rejection_reason: str
+    faculty_id: str
+
+class RubricCriterion(BaseModel):
+    name: str
+    description: str
+    max_score: float
+    score: Optional[float] = None
+    feedback: Optional[str] = None
+
+class RubricEvaluation(BaseModel):
+    submission_id: str
+    criteria: List[RubricCriterion]
+    total_score: float
+    overall_feedback: str
+    evaluated_by: str
+    evaluation_date: datetime
+
+class RubricRequest(BaseModel):
+    faculty_id: str
+    submission_id: str
+    criteria_scores: Dict[str, float]
+    feedback: str
+
+# Initialize submission processing service
+submission_processor = SubmissionProcessingService()
+
+@router.post("/student/swot", response_model=SWOTResponse)
+async def analyze_student_submission(request: SWOTRequest, db: Session = Depends(get_db)):
+    """
+    Analyze student submission using SWOT analysis.
+    Students can submit multiple times for iterative feedback.
+    """
+    try:
+        # Get existing submission details
+        submission = db.query(DBStudentSubmission).filter(
+            DBStudentSubmission.id == uuid.UUID(request.submission_id)
+        ).first()
+        
+        if not submission:
+            raise HTTPException(status_code=404, detail="Submission not found")
+            
+        # Get iteration count
+        iteration = db.query(DBEvaluationResult).filter(
+            DBEvaluationResult.submission_id == uuid.UUID(request.submission_id),
+            DBEvaluationResult.type == 'swot'
+        ).count() + 1
+
+        # Perform SWOT analysis using LLM
+        analysis = await submission_processor.perform_swot_analysis(
+            request.submission_text,
+            submission.assignment.requirements if submission.assignment else []
+        )
+        
+        # Save analysis result
+        result = DBEvaluationResult(
+            id=uuid.uuid4(),
+            submission_id=uuid.UUID(request.submission_id),
+            evaluator_id=request.student_id,
+            type='swot',
+            scores={},  # SWOT doesn't have numerical scores
+            feedback=analysis.dict(),
+            iteration=iteration
+        )
+        db.add(result)
+        db.commit()
+        
+        return SWOTResponse(
+            submission_id=request.submission_id,
+            analysis=analysis,
+            iteration=iteration,
+            final=iteration >= 3  # Limit to 3 iterations
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in SWOT analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/faculty/evaluate", response_model=RubricEvaluation)
+async def faculty_evaluation(request: RubricRequest, db: Session = Depends(get_db)):
+    """
+    Faculty performs final rubric-based evaluation of student submission
+    """
+    try:
+        # Get submission
+        submission = db.query(DBStudentSubmission).filter(
+            DBStudentSubmission.id == uuid.UUID(request.submission_id)
+        ).first()
+        
+        if not submission:
+            raise HTTPException(status_code=404, detail="Submission not found")
+
+        # Calculate total score
+        total_score = sum(request.criteria_scores.values())
+        
+        # Create evaluation result
+        result = DBEvaluationResult(
+            id=uuid.uuid4(),
+            submission_id=uuid.UUID(request.submission_id),
+            evaluator_id=request.faculty_id,
+            type='rubric',
+            scores=request.criteria_scores,
+            feedback=request.feedback,
+            total_score=total_score
+        )
+        db.add(result)
+        
+        # Update submission status
+        submission.evaluation_status = 'completed'
+        db.commit()
+        
+        return RubricEvaluation(
+            submission_id=request.submission_id,
+            criteria=[
+                RubricCriterion(
+                    name=name,
+                    description=submission.assignment.rubric.get(name, {}).get('description', ''),
+                    max_score=submission.assignment.rubric.get(name, {}).get('max_score', 10),
+                    score=score,
+                    feedback=submission.assignment.rubric.get(name, {}).get('feedback', '')
+                )
+                for name, score in request.criteria_scores.items()
+            ],
+            total_score=total_score,
+            overall_feedback=request.feedback,
+            evaluated_by=request.faculty_id,
+            evaluation_date=datetime.now()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in faculty evaluation: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Helper to transform hardcoded MySQL rubric dimensions into app's expected structure
+def _transform_mysql_rubric_to_app_structure(dimensions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Convert dimensions list (from MySQL) into {'rubrics': [{category, questions}...]}
+    so the evaluation service can consume it uniformly.
+    """
+    rubrics: List[Dict[str, Any]] = []
+    for dim in dimensions or []:
+        category_name = dim.get('name', 'Unnamed Category')
+        criteria_output = dim.get('criteria_output', {}) or {}
+        questions: List[str] = []
+        for crit_key, crit_desc in criteria_output.items():
+            # Form a clear evaluation prompt segment for each sub-criterion
+            questions.append(f"{category_name} > {crit_key}: {crit_desc}")
+        if questions:
+            rubrics.append({
+                'category': category_name,
+                'questions': questions
+            })
+    return {'rubrics': rubrics}
 
 # Response Models
 class CourseResponse(BaseModel):
@@ -111,10 +406,11 @@ class CourseSelectionRequest(BaseModel):
     semester: int
 
 class EvaluationRequest(BaseModel):
-    assignment_id: str
-    rubric_id: str
-    submission_ids: Optional[List[str]] = None  # If provided, only evaluate these specific submissions
-    
+    submission_id: str
+    criteria_scores: Dict[str, float]
+    feedback: str
+    faculty_id: Optional[str]='f20220162'
+
 class FacultyReviewRequest(BaseModel):
     adjusted_scores: Dict[str, Any]
     faculty_feedback: str
@@ -266,23 +562,36 @@ async def get_rubrics_for_assignment(assignment_id: str, db: Session = Depends(g
     try:
         assignment_uuid = uuid.UUID(assignment_id)
         
-        # Find rubrics that include this assignment
-        rubrics = db.query(DBAssignmentRubric).filter(
+        # Always ensure a rubric exists for this assignment using the hardcoded rubric
+        existing = db.query(DBAssignmentRubric).filter(
             DBAssignmentRubric.assignment_ids.contains([assignment_uuid])
-        ).all()
-        
-        rubric_responses = []
-        for rubric in rubrics:
-            rubric_responses.append(RubricResponse(
-                id=str(rubric.id),
-                rubric_name=rubric.rubric_name,
-                doc_type=rubric.doc_type,
-                criteria=rubric.criteria,
-                is_edited=rubric.is_edited,
-                created_at=rubric.created_at
-            ))
-        
-        return rubric_responses
+        ).first()
+
+        if not existing:
+            # Load hardcoded rubric from MySQL and persist as the assignment's rubric
+            mysql_dimensions = fetch_rubric(rubric_name="Situated_Learning_rubric", as_text=False)
+            if not mysql_dimensions:
+                raise HTTPException(status_code=500, detail="Hardcoded rubric not found in MySQL")
+            transformed = _transform_mysql_rubric_to_app_structure(mysql_dimensions)
+            new_rubric = DBAssignmentRubric(
+                id=uuid.uuid4(),
+                assignment_ids=[assignment_uuid],
+                rubric_name="Situated_Learning_rubric",
+                doc_type="Assignment",
+                criteria=transformed
+            )
+            db.add(new_rubric)
+            db.commit()
+            existing = new_rubric
+
+        return [RubricResponse(
+            id=str(existing.id),
+            rubric_name=existing.rubric_name,
+            doc_type=existing.doc_type,
+            criteria=existing.criteria,
+            is_edited=existing.is_edited,
+            created_at=existing.updated_at or existing.created_at
+        )]
         
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid assignment ID format")
@@ -294,6 +603,8 @@ async def get_rubrics_for_assignment(assignment_id: str, db: Session = Depends(g
 @router.post("/submissions/upload", response_model=List[SubmissionResponse])
 async def upload_student_submissions(
     assignment_id: str = Form(...),
+    student_id: Optional[str] = Form(None),  # Made optional for now
+    course_id: Optional[str] = Form(None),   # Made optional for now
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
@@ -301,19 +612,63 @@ async def upload_student_submissions(
     Upload student submissions for evaluation (max 5 files, PDF/DOCX only)
     Files are processed and stored in MinIO, text extracted if needed
     Only processes new files, skips already processed ones
+    
+    Parameters:
+    - assignment_id: UUID of the assignment
+    - student_id: ID of the student submitting (optional - will be pulled from assignment)
+    - course_id: UUID of the course (optional - will be pulled from assignment)
+    - files: List of files to upload (max 5, PDF/DOCX only)
     """
+    print("UPLOAD STUDENT SUBMISSIONS CALLED")
     try:
+        # Log incoming request parameters
+        logger.debug("="*50)
+        logger.debug("UPLOAD REQUEST RECEIVED")
+        logger.debug("="*50)
+        logger.info(f"REQUEST PARAMETERS:")
+        logger.info(f"→ student_id: {student_id!r} (type: {type(student_id).__name__})")
+        logger.info(f"→ course_id: {course_id!r} (type: {type(course_id).__name__})")
+        logger.info(f"→ assignment_id: {assignment_id!r}")
+        logger.info(f"→ Number of files: {len(files)}")
+        logger.info(f"→ File names: {[f.filename for f in files]}")
+        logger.debug("-"*50)
+
         # Validate file count
         if len(files) > 5:
             raise HTTPException(status_code=400, detail="Maximum 5 submissions allowed per evaluation")
     
-        # Validate assignment exists
+        # Validate assignment exists and get course info
         assignment = db.query(DBGeneratedAssignment).filter(
             DBGeneratedAssignment.id == uuid.UUID(assignment_id)
         ).first()
         
         if not assignment:
             raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        # Log assignment details
+        logger.debug("="*50)
+        logger.debug("ASSIGNMENT DETAILS")
+        logger.debug("="*50)
+        logger.info(f"FOUND ASSIGNMENT:")
+        logger.info(f"→ Assignment ID: {assignment.id}")
+        logger.info(f"→ Assignment course_id: {assignment.course_id}")
+        
+        # Use provided values or get from assignment
+        final_student_id = student_id or "TEMP_STUDENT"  # This should be replaced with actual student ID from auth
+        final_course_id = course_id or str(assignment.course_id)
+        
+        # Log final values
+        logger.debug("="*50)
+        logger.debug("FINAL VALUES")
+        logger.debug("="*50)
+        logger.info(f"AFTER FALLBACK:")
+        logger.info(f"→ final_student_id: {final_student_id!r}")
+        logger.info(f"→ final_course_id: {final_course_id!r}")
+        logger.debug("-"*50)
+        
+        if not final_course_id:
+            logger.error(f"Course ID missing - student_id: {student_id}, course_id: {course_id}, assignment.course_id: {assignment.course_id}")
+            raise HTTPException(status_code=400, detail="Course ID not found - either provide it or ensure assignment has course_id")
         
         # Check for existing submissions (but don't delete them)
         existing_submissions = db.query(DBStudentSubmission).filter(
@@ -384,16 +739,37 @@ async def upload_student_submissions(
                 logger.error(f"Failed to upload {file.filename} to MinIO: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Failed to store file {file.filename}")
             
+            # Log submission creation details
+            logger.debug("="*50)
+            logger.debug("CREATING SUBMISSION")
+            logger.debug("="*50)
+            logger.info(f"SUBMISSION DETAILS:")
+            logger.info(f"→ submission_id: {submission_id!r}")
+            logger.info(f"→ student_id: {final_student_id!r}")
+            logger.info(f"→ course_id: {final_course_id!r}")
+            logger.info(f"→ file: {file.filename!r}")
+            logger.debug("-"*50)
+            
             # Create database entry with MinIO path
             submission = DBStudentSubmission(
                 id=uuid.UUID(submission_id),
+                student_id=final_student_id,  # Use final_student_id
+                course_id=uuid.UUID(final_course_id),  # Use final_course_id
                 assignment_id=uuid.UUID(assignment_id),
                 original_file_name=file.filename,
                 file_path=minio_path,  # Store MinIO path instead of temp path
                 file_type=file.filename.split('.')[-1].lower(),
                 extracted_text=extracted_text,
-                ocr_confidence=ocr_confidence
+                ocr_confidence=ocr_confidence,
+                processing_status='pending',
+                evaluation_status='draft'
             )
+            
+            # Log the created submission object
+            logger.info("Submission object created:")
+            logger.info(f"ID: {submission.id}")
+            logger.info(f"Student ID: {submission.student_id}")
+            logger.info(f"Course ID: {submission.course_id}")
             
             db.add(submission)
             db.flush()
@@ -476,20 +852,34 @@ async def evaluate_submissions_against_rubric(
     If submission_ids is None/empty, all submissions for the assignment will be evaluated (backward compatibility).
     """
     try:
-        # Validate assignment and rubric exist
+        # Validate assignment
         assignment = db.query(DBGeneratedAssignment).filter(
             DBGeneratedAssignment.id == uuid.UUID(request.assignment_id)
         ).first()
         
         if not assignment:
             raise HTTPException(status_code=404, detail="Assignment not found")
-        
+
+        # Load hardcoded rubric from MySQL, materialize/ensure a local rubric row, and use it
+        mysql_dimensions = fetch_rubric(rubric_name="Situated_Learning_rubric", as_text=False)
+        if not mysql_dimensions:
+            raise HTTPException(status_code=500, detail="Hardcoded rubric not found in MySQL")
+        transformed_rubric = _transform_mysql_rubric_to_app_structure(mysql_dimensions)
+
+        # Ensure a rubric DB record exists for FK integrity and report generation
         rubric = db.query(DBAssignmentRubric).filter(
-            DBAssignmentRubric.id == uuid.UUID(request.rubric_id)
+            DBAssignmentRubric.assignment_ids.contains([uuid.UUID(request.assignment_id)])
         ).first()
-        
         if not rubric:
-            raise HTTPException(status_code=404, detail="Rubric not found")
+            rubric = DBAssignmentRubric(
+                id=uuid.uuid4(),
+                assignment_ids=[uuid.UUID(request.assignment_id)],
+                rubric_name="Situated_Learning_rubric",
+                doc_type="Assignment",
+                criteria=transformed_rubric
+            )
+            db.add(rubric)
+            db.flush()
         
         # Get submissions for this assignment
         if request.submission_ids:
@@ -540,7 +930,7 @@ async def evaluate_submissions_against_rubric(
                 evaluation_result = submission_processor.evaluate_submission(
                     submission_text=submission.extracted_text,
                     assignment_description=assignment_description,
-                    rubric=rubric.criteria,
+                    rubric=transformed_rubric,
                     submission_id=str(submission.id)
                 )
                 
@@ -579,7 +969,7 @@ async def evaluate_submissions_against_rubric(
                     id=uuid.uuid4(),
                     submission_id=submission.id,
                     assignment_id=uuid.UUID(request.assignment_id),
-                    rubric_id=uuid.UUID(request.rubric_id),
+                    rubric_id=rubric.id,
                     overall_score=float(evaluation_result.overall_score),  # Out of 20
                     criterion_scores=criterion_scores,
                     ai_feedback=evaluation_result.overall_feedback,
@@ -801,65 +1191,10 @@ async def generate_evaluation_report(assignment_id: str, db: Session = Depends(g
         raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
 
 # Generate Rubric for Assignment (Step 3 - when no rubric exists)
-class RubricGenerationRequestEval(BaseModel):
-    rubric_name: str
-
-@router.post("/assignments/{assignment_id}/rubric/generate")
-async def generate_rubric_for_assignment(
-    assignment_id: str,
-    request: RubricGenerationRequestEval,
-    db: Session = Depends(get_db)
-):
-    """Generate rubric for a specific assignment in the evaluation flow"""
-    try:
-        # Get the assignment
-        assignment = db.query(DBGeneratedAssignment).filter(
-            DBGeneratedAssignment.id == uuid.UUID(assignment_id)
-        ).first()
-        
-        if not assignment:
-            raise HTTPException(status_code=404, detail="Assignment not found")
-        
-        # Import rubric service
-        from services.rubric_service import RubricService
-        rubric_service = RubricService()
-        
-        # Combine assignment text for rubric generation
-        combined_text = f"Assignment: {assignment.title}\n{assignment.description}"
-        
-        # Generate rubric
-        rubric_data = await rubric_service.generate_rubric(
-            text=combined_text,
-            doc_type="Situated Learning Assignment"
-        )
-        
-        # Update the rubric_data to use the user-provided name consistently
-        rubric_data["rubric_name"] = request.rubric_name
-        
-        # Save to database
-        db_rubric = DBAssignmentRubric(
-            id=uuid.uuid4(),
-            assignment_ids=[assignment.id],
-            rubric_name=request.rubric_name,
-            doc_type=rubric_data.get("doc_type", "Assignment"),
-            criteria=rubric_data
-        )
-        
-        db.add(db_rubric)
-        db.commit()
-        
-        return {
-            "message": "Rubric generated successfully",
-            "rubric_id": str(db_rubric.id),
-            "rubric": rubric_data
-        }
-        
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid assignment ID format")
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error generating rubric for assignment {assignment_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate rubric: {str(e)}")
+"""
+Rubric generation in evaluation flow is disabled; the system uses a hardcoded rubric
+from MySQL. The previous endpoint has been intentionally removed.
+"""
 
 # Edit Rubric in Evaluation Flow (Step 3)
 class RubricEditRequestEval(BaseModel):
@@ -906,6 +1241,82 @@ async def edit_rubric_in_evaluation(
         db.rollback()
         logger.error(f"Error editing rubric {rubric_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to edit rubric: {str(e)}")
+
+@router.post("/faculty/reject/{submission_id}")
+async def reject_submission(
+    submission_id: str,
+    rejection: RejectionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Faculty rejection of a student submission with feedback
+    """
+    try:
+        # Get submission
+        submission = db.query(DBStudentSubmission).filter(
+            DBStudentSubmission.id == submission_id
+        ).first()
+        
+        if not submission:
+            raise HTTPException(status_code=404, detail="Submission not found")
+            
+        # Update submission status and add rejection details
+        submission.evaluation_status = "rejected"
+        submission.rejection_reason = rejection.rejection_reason
+        submission.rejection_date = datetime.utcnow()
+        
+        # Save to database
+        db.commit()
+        
+        return {"message": "Submission rejected successfully"}
+        
+    except Exception as e:
+        logger.error(f"Error rejecting submission: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error rejecting submission")
+
+@router.post("/faculty/evaluate/{submission_id}/finalize")
+async def finalize_evaluation(
+    submission_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Finalize an evaluation after score adjustments
+    """
+    try:
+        # Get submission
+        submission = db.query(DBStudentSubmission).filter(
+            DBStudentSubmission.id == submission_id
+        ).first()
+        
+        if not submission:
+            raise HTTPException(status_code=404, detail="Submission not found")
+            
+        # Update submission status
+        submission.evaluation_status = "evaluated"
+        
+        # Get final evaluation
+        eval_result = db.query(DBFacultyEvaluation).filter(
+            DBFacultyEvaluation.submission_id == submission_id
+        ).first()
+        
+        if not eval_result:
+            raise HTTPException(status_code=404, detail="Evaluation not found")
+            
+        # Update evaluation
+        eval_result.is_finalized = True
+        eval_result.finalized_at = datetime.utcnow()
+        
+        # Save changes
+        db.commit()
+        
+        return {"message": "Evaluation finalized successfully"}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error finalizing evaluation: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to finalize evaluation: {str(e)}")
 
 # Service Health and Status Endpoints
 @router.get("/status")

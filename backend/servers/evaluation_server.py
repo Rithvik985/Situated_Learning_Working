@@ -21,11 +21,28 @@ import uvicorn
 
 # Import routers and configuration
 from routers.evaluation import router as evaluation_router
+from routers.student import router as student_router
+from routers.faculty import router as faculty_router
 from database.connection import init_db
 from config.settings import settings
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('evaluation_server.log')  # Also log to file
+    ]
+)
+
+# Disable noisy third-party loggers
+logging.getLogger('watchfiles.main').setLevel(logging.WARNING)
+logging.getLogger('uvicorn.access').setLevel(logging.WARNING)
+
+# Get our application logger
+app_logger = logging.getLogger('evaluation_server')
+app_logger.setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -64,6 +81,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(evaluation_router, prefix="/evaluation")
+app.include_router(student_router, prefix="/student")
+app.include_router(faculty_router, prefix="/faculty")
 
 # Global exception handler
 @app.exception_handler(Exception)

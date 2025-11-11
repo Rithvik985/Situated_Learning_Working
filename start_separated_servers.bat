@@ -47,6 +47,20 @@ start "Analytics Server" cmd /k "cd /d %~dp0 && python start_analytics_server.py
 REM Wait a moment
 timeout /t 2 /nobreak > nul
 
+REM Start Student Server (Port 8024)
+echo 👨‍🎓 Starting Student Server (Port 8024)...
+start "Student Server" cmd /k "cd /d %~dp0 && python start_student_server.py"
+
+REM Wait a moment
+timeout /t 2 /nobreak > nul
+
+REM Start Faculty Server (Port 8025)
+echo 👨‍🏫 Starting Faculty Server (Port 8025)...
+start "Faculty Server" cmd /k "cd /d %~dp0 && python start_faculty_server.py"
+
+REM Wait a moment
+timeout /t 2 /nobreak > nul
+
 REM Start Frontend (Port 3000)
 echo 🌐 Starting Frontend (Port 3000)...
 start "Frontend" cmd /k "cd /d %~dp0\frontend && npm run dev"
@@ -60,6 +74,8 @@ echo   • Upload API:      http://localhost:8020
 echo   • Generation API:  http://localhost:8021
 echo   • Evaluation API:  http://localhost:8022
 echo   • Analytics API:   http://localhost:8023
+echo   • Student API:     http://localhost:8024
+echo   • Faculty API:     http://localhost:8025
 echo   • MinIO Console:   http://localhost:9001 (admin/password1234)
 echo.
 echo 💡 Each server runs in its own terminal window

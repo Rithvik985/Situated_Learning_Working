@@ -4,6 +4,7 @@ Situated Learning System - Main FastAPI Application
 """
 
 import os
+from backend.routers import evaluation
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,9 +14,14 @@ from contextlib import asynccontextmanager
 from config.settings import settings
 from database.connection import database, init_db
 from storage.minio_client import minio_client
-from routers import upload, generation, evaluation, analytics
+from routers import upload, generation, analytics, student, faculty
+import logging
 
-# Global instances are imported
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -69,6 +75,8 @@ app.include_router(upload.router, prefix="/api/upload", tags=["Upload"])
 app.include_router(generation.router, prefix="/api/generation", tags=["Assignment Generation"])
 app.include_router(evaluation.router, prefix="/api/evaluation", tags=["Evaluation"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(student.router, prefix="/api/student", tags=["Student"])
+app.include_router(faculty.router, prefix="/api/faculty", tags=["Faculty"])
 
 # Health check endpoint
 @app.get("/health")
@@ -97,3 +105,6 @@ if __name__ == "__main__":
         reload=settings.DEBUG,
         log_level="info"
     )
+
+from routers import course
+app.include_router(course.router)

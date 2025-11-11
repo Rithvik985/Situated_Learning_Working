@@ -671,3 +671,15 @@ input[type="checkbox"] {
     opacity: 0;
   }
 }
+
+
+.my-select__control {
+  background-color: var(--bg-lighter);
+}
+.my-select__menu {
+  background-color: var(--bg-lighter);
+}
+
+h1, h2, h3, h4 {
+  color: #e9ce04;
+}

@@ -79,32 +79,39 @@ const handleLogout = async () => {
           {/* Desktop Navigation */}
           <nav className="nav-desktop">
             <Link 
-              to="/generate-assignment" 
-              className={`nav-link ${isActive('/generate-assignment') ? 'active' : ''}`}
+              to="/faculty/dashboard" 
+              className={`nav-link ${isActive('/faculty-dashboard') ? 'active' : ''}`}
             >
-              <FontAwesomeIcon icon={faFileText} />
-              Generate Assignment
+              <FontAwesomeIcon icon={faChartLine} />
+              Faculty Dashboard
             </Link>
             <Link 
-              to="/evaluate-assignment" 
-              className={`nav-link ${isActive('/evaluation') ? 'active' : ''}`}
+              to="/faculty/evaluation" 
+              className={`nav-link ${isActive('/faculty-evaluation') ? 'active' : ''}`}
             >
               <FontAwesomeIcon icon={faClipboardCheck} />
-              Evaluation
+              Faculty Evaluation
+            </Link>
+            <Link 
+              to="/student/evaluation" 
+              className={`nav-link ${isActive('/student-evaluation') ? 'active' : ''}`}
+            >
+              <FontAwesomeIcon icon={faFileText} />
+              Student Evaluation
+            </Link>
+            <Link 
+              to="/student-workflow" 
+              className={`nav-link ${isActive('/student-workflow') ? 'active' : ''}`}
+            >
+              <FontAwesomeIcon icon={faHome} />
+              Student Workflow
             </Link>
             <Link 
               to="/dashboard" 
-              className={`nav-link ${isActive('/analytics') ? 'active' : ''}`}
+              className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`}
             >
               <FontAwesomeIcon icon={faChartLine} />
               Analytics
-            </Link>
-            <Link 
-              to="/upload-past-assignment" 
-              className={`nav-link ${isActive('/upload-past-assignment') ? 'active' : ''}`}
-            >
-              <FontAwesomeIcon icon={faUpload} />
-              Upload Past Assignments
             </Link>
           </nav>
 
@@ -134,31 +141,39 @@ const handleLogout = async () => {
         {/* Mobile Navigation */}
         <nav className={`nav-mobile ${isMobileMenuOpen ? 'open' : ''}`}>
           <Link 
-            to="/upload-past-assignment" 
-            className={`nav-link ${isActive('/upload-past-assignment') ? 'active' : ''}`}
+            to="/faculty-dashboard" 
+            className={`nav-link ${isActive('/faculty-dashboard') ? 'active' : ''}`}
             onClick={closeMobileMenu}
           >
-            <FontAwesomeIcon icon={faUpload} />
-            Upload Past Assignments
+            <FontAwesomeIcon icon={faChartLine} />
+            Faculty Dashboard
           </Link>
           <Link 
-            to="/generate-assignment" 
-            className={`nav-link ${isActive('/generate-assignment') ? 'active' : ''}`}
-            onClick={closeMobileMenu}
-          >
-            <FontAwesomeIcon icon={faFileText} />
-            Generate Assignment
-          </Link>
-          <Link 
-            to="/evaluate-assignment" 
-            className={`nav-link ${isActive('/evaluation') ? 'active' : ''}`}
+            to="/faculty-evaluation" 
+            className={`nav-link ${isActive('/faculty-evaluation') ? 'active' : ''}`}
             onClick={closeMobileMenu}
           >
             <FontAwesomeIcon icon={faClipboardCheck} />
-            Evaluation
+            Faculty Evaluation
           </Link>
           <Link 
-            to="/dashboard" 
+            to="/student-evaluation" 
+            className={`nav-link ${isActive('/student-evaluation') ? 'active' : ''}`}
+            onClick={closeMobileMenu}
+          >
+            <FontAwesomeIcon icon={faFileText} />
+            Student Evaluation
+          </Link>
+          <Link 
+            to="/student-workflow" 
+            className={`nav-link ${isActive('/student-workflow') ? 'active' : ''}`}
+            onClick={closeMobileMenu}
+          >
+            <FontAwesomeIcon icon={faHome} />
+            Student Workflow
+          </Link>
+          <Link 
+            to="/analytics" 
             className={`nav-link ${isActive('/analytics') ? 'active' : ''}`}
             onClick={closeMobileMenu}
           >

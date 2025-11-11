@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 
+
 from .connection import Base
 
 class Course(Base):
@@ -25,7 +26,9 @@ class Course(Base):
     # Relationships
     past_assignments = relationship("PastAssignment", back_populates="course")
     generated_assignments = relationship("GeneratedAssignment", back_populates="course")
-    
+    student_question_sets = relationship("StudentQuestionSet", back_populates="course")
+
+
     # Constraints
     __table_args__ = (
         UniqueConstraint('title', 'course_code', 'academic_year', 'semester', name='unique_course'),
@@ -124,36 +127,90 @@ class AssignmentRubric(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class StudentSubmission(Base):
-    """Student submission model"""
+    """Student submission of an assignment"""
     __tablename__ = "student_submissions"
     
+    # Add AI detection results column
+    ai_detection_results = Column(JSONB, nullable=True)
+    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    student_id = Column(String(255), nullable=False)
     assignment_id = Column(UUID(as_uuid=True), ForeignKey("generated_assignments.id", ondelete="CASCADE"), nullable=False)
-    original_file_name = Column(String(255), nullable=False)
-    file_path = Column(String(500), nullable=False)
-    file_type = Column(String(50), nullable=False)
+    course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    original_file_name = Column(String(255), nullable=True)  # Added column
+    file_path = Column(String(500))
+    file_type = Column(String(50))
     file_size = Column(BigInteger)
-    processing_status = Column(String(50), default='pending')  # pending, processed, failed
-    extraction_method = Column(String(50))  # standard, ocr, ocr_vision_llm, standard_fallback
-    extracted_text = Column(Text)
-    ocr_confidence = Column(Float)
-    processing_metadata = Column(JSONB)
-    error_message = Column(Text)
+    content = Column(Text)
+    extracted_text = Column(Text, nullable=True)  # Added column
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    submission_date = Column(DateTime(timezone=True), server_default=func.now())
+    processing_status = Column(String(50), default='pending')
+    evaluation_status = Column(String(50), default='draft')  # draft, pending_faculty, evaluated, rejected
+    extraction_method = Column(String(50), nullable=True)  # Added column
+    ocr_confidence = Column(Float, nullable=True)  # Added column
+    processing_metadata = Column(JSONB, nullable=True)  # Added column
+    evaluation_score = Column(Float)  # Stores final marks (0-24)
+    rejection_reason = Column(Text)  # Stores faculty feedback for rejected submissions
+    rejection_date = Column(DateTime(timezone=True))  # When the submission was rejected
+    faculty_feedback = Column(Text)  # General faculty feedback (for both rejected and evaluated)
+    swot_analysis = Column(JSONB)
+    error_message = Column(Text)
+
+    # Course and Assignment relationships
+    course = relationship("Course", backref="submissions")
+    assignment = relationship("GeneratedAssignment", backref="submissions")
     
-    # Relationships
-    assignment = relationship("GeneratedAssignment")
-    evaluation_results = relationship("EvaluationResult", back_populates="submission")
-    
-    # Constraints
-    __table_args__ = (
-        CheckConstraint("processing_status IN ('pending', 'processed', 'failed')", name='check_processing_status'),
-        CheckConstraint("extraction_method IN ('standard', 'ocr', 'ocr_vision_llm', 'standard_fallback')", name='check_extraction_method'),
+    # Evaluation relationships - each submission can have multiple evaluations
+    faculty_evaluations = relationship(
+        "FacultyEvaluationResult",
+        back_populates="submission",
+        cascade="all, delete-orphan"
+    )
+    swot_analyses = relationship(
+        "StudentSWOTResult",
+        back_populates="submission",
+        cascade="all, delete-orphan"
+    )
+    evaluation_results = relationship(
+        "EvaluationResult",
+        back_populates="submission",
+        cascade="all, delete-orphan"
     )
 
+
+class FacultyEvaluationResult(Base):
+    """Faculty Evaluation Result model for rubric-based evaluations"""
+    __tablename__ = "faculty_evaluation_results"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    submission_id = Column(UUID(as_uuid=True), ForeignKey("student_submissions.id", ondelete="CASCADE"), nullable=False)
+    faculty_id = Column(String(255),nullable=True)
+    rubric_scores = Column(JSONB, nullable=False)
+    comments = Column(Text)
+    evaluation_date = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    submission = relationship("StudentSubmission", back_populates="faculty_evaluations")
+
+class StudentSWOTResult(Base):
+    """Student SWOT Analysis Result model"""
+    __tablename__ = "student_swot_results"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    submission_id = Column(UUID(as_uuid=True), ForeignKey("student_submissions.id", ondelete="CASCADE"), nullable=False)
+    strengths = Column(ARRAY(String), nullable=False)
+    weaknesses = Column(ARRAY(String), nullable=False)
+    opportunities = Column(ARRAY(String), nullable=False)
+    threats = Column(ARRAY(String), nullable=False)
+    suggestions = Column(ARRAY(String), nullable=False)
+    analysis_date = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    submission = relationship("StudentSubmission", back_populates="swot_analyses")
+
 class EvaluationResult(Base):
-    """Evaluation result model"""
+    """Evaluation result model for AI-based automatic evaluations"""
     __tablename__ = "evaluation_results"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -165,6 +222,16 @@ class EvaluationResult(Base):
     ai_feedback = Column(Text)
     faculty_feedback = Column(Text)
     faculty_score_adjustment = Column(Float)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    submission = relationship(
+        "StudentSubmission",
+        back_populates="evaluation_results",
+        uselist=False
+    )
+    assignment = relationship("GeneratedAssignment")
+    rubric = relationship("AssignmentRubric")
     faculty_reason = Column(Text)
     flags = Column(ARRAY(Text))  # quality_issues, plagiarism_detected, etc.
     evaluation_metadata = Column(JSONB)
@@ -181,3 +248,48 @@ class EvaluationResult(Base):
     __table_args__ = (
         CheckConstraint("overall_score >= 0", name='check_overall_score_positive'),
     )
+
+class StudentQuestionSet(Base):
+    """Stores generated questions per student context and approval status"""
+    __tablename__ = "student_question_sets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id", ondelete="SET NULL"))
+    student_id = Column(String(255), nullable=False)  # external user id/email
+    domain = Column(String(255), nullable=False)
+    service_category = Column(String(255))
+    department = Column(String(255))
+    contextual_inputs = Column(JSONB)  # any extra dropdown/context info
+    generated_questions = Column(ARRAY(Text), nullable=False)
+    selected_question = Column(Text)
+    approval_status = Column(String(50), default='pending')  # pending, approved, rejected
+    approved_by = Column(String(255))
+    faculty_remarks = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    course = relationship("Course", back_populates="student_question_sets")
+
+    __table_args__ = (
+        CheckConstraint("approval_status IN ('pending','approved','rejected')", name='check_approval_status'),
+    )
+
+class SWOTSubmission(Base):
+    """Independent table for storing SWOT analysis submissions"""
+    __tablename__ = "swot_submissions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    student_id = Column(String(255), nullable=False)
+    submission_id = Column(UUID(as_uuid=True), nullable=True)  # optional link to other tables
+    content = Column(Text, nullable=False)
+    swot_analysis = Column(JSONB, nullable=True)
+    processing_status = Column(String(50), default="pending")
+    evaluation_status = Column(String(50), default="draft")
+    error_message = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+from sqlalchemy.orm import configure_mappers
+configure_mappers()
+

@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.dirname(__file__))
 
 from services.llm_service import LLMService
-from services.rubric_service import RubricService
+# from services.rubric_service import RubricService
 from services.document_service import DocumentService
 
 async def test_llm_service():
@@ -32,20 +32,20 @@ async def test_llm_service():
     # Note: Actual LLM call would require a running LLM server
     print("✅ LLM Service structure is valid")
 
-def test_rubric_service():
-    """Test Rubric service"""
-    print("\nTesting Rubric Service...")
+# def test_rubric_service():
+#     """Test Rubric service"""
+#     print("\nTesting Rubric Service...")
     
-    rubric_service = RubricService()
+#     rubric_service = RubricService()
     
-    # Test fallback rubric generation
-    fallback_rubric = rubric_service._get_fallback_rubric("Situated Learning Assignment")
+#     # Test fallback rubric generation
+#     fallback_rubric = rubric_service._get_fallback_rubric("Situated Learning Assignment")
     
-    assert "rubric_name" in fallback_rubric
-    assert "rubrics" in fallback_rubric
-    assert len(fallback_rubric["rubrics"]) == 4
+#     assert "rubric_name" in fallback_rubric
+#     assert "rubrics" in fallback_rubric
+#     assert len(fallback_rubric["rubrics"]) == 4
     
-    print("✅ Rubric Service structure is valid")
+#     print("✅ Rubric Service structure is valid")
 
 def test_document_service():
     """Test Document service with mock data"""
@@ -82,7 +82,8 @@ def test_database_models():
     print("\nTesting Database Models...")
     
     try:
-        from database.models import GeneratedAssignment, AssignmentRubric
+        from database.models import GeneratedAssignment
+        # , AssignmentRubric
         print("✅ Database models imported successfully")
     except ImportError as e:
         print(f"❌ Database model import failed: {e}")
@@ -109,7 +110,7 @@ def main():
         # Test synchronous components
         test_database_models()
         test_api_structure()
-        test_rubric_service()
+        # test_rubric_service()
         test_document_service()
         
         # Test asynchronous components

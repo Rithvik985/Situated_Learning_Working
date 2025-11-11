@@ -1,0 +1,43 @@
+import sys
+import os
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+backend_dir = current_dir.parent
+sys.path.insert(0, str(backend_dir))
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from routers import faculty
+import uvicorn
+
+app = FastAPI(title="Faculty Service API")
+
+# Configure CORS with specific origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Error handler for custom error responses
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    return {
+        "success": False,
+        "message": str(exc.detail),
+        "status_code": exc.status_code
+    }
+
+# Include the faculty router
+app.include_router(faculty.router, prefix="/api/faculty", tags=["faculty"])
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "faculty-server"}
+
+if __name__ == "__main__":
+    uvicorn.run("faculty_server:app", host="0.0.0.0", port=8025, reload=True)

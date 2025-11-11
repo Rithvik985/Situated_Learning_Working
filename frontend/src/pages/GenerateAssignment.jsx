@@ -40,6 +40,7 @@ const GenerateAssignment = () => {
   const [selectedAssignments, setSelectedAssignments] = useState([])
   const [editingAssignments, setEditingAssignments] = useState({})
   const [editReasons, setEditReasons] = useState({})
+  // Rubric generation/editing disabled
   const [rubric, setRubric] = useState(null)
   const [isGeneratingRubric, setIsGeneratingRubric] = useState(false)
   const [showRubric, setShowRubric] = useState(false)
@@ -48,8 +49,8 @@ const GenerateAssignment = () => {
   const [rubricEditReason, setRubricEditReason] = useState('')
   const [assignmentName, setAssignmentName] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [showRubricNameModal, setShowRubricNameModal] = useState(false)
-  const [rubricName, setRubricName] = useState('')
+  // const [showRubricNameModal, setShowRubricNameModal] = useState(false)
+  // const [rubricName, setRubricName] = useState('')
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 6, message: '' })
   const [expandedAssignments, setExpandedAssignments] = useState(new Set())
   const [notifications, setNotifications] = useState([])
@@ -549,60 +550,7 @@ const GenerateAssignment = () => {
     }
   }
 
-  const generateRubric = async () => {
-    if (selectedAssignments.length === 0) {
-      showNotification('Please select an assignment to generate a rubric.', 'error')
-      return
-    }
-
-    // Get the selected assignment for auto-naming
-    const selectedAssignment = generatedAssignments.find(a => a.id === selectedAssignments[0])
-    const autoRubricName = selectedAssignment ? `${selectedAssignment.title}_Rubric` : 'Assignment_Rubric'
-    
-    setRubricName(autoRubricName)
-    setShowRubricNameModal(true)
-  }
-
-  const confirmGenerateRubric = async () => {
-    if (!rubricName.trim()) {
-      showNotification('Please provide a name for the rubric.', 'error')
-      return
-    }
-
-    setShowRubricNameModal(false)
-    setIsGeneratingRubric(true)
-
-    try {
-      const response = await fetch(getApiUrl(SERVERS.GENERATION, ENDPOINTS.RUBRIC_GENERATE), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          assignment_ids: selectedAssignments,
-          rubric_name: rubricName.trim()
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to generate rubric')
-      }
-
-      const result = await response.json()
-      setRubric({
-        ...result.rubric,
-        rubric_id: result.rubric_id,
-        is_edited: false
-      })
-      setShowRubric(true)
-      showNotification('Rubric generated successfully!', 'success')
-    } catch (err) {
-      showNotification(err.message, 'error')
-    } finally {
-      setIsGeneratingRubric(false)
-    }
-  }
+  // Rubric generation disabled
 
   const saveAssignment = async () => {
     if (!assignmentName.trim()) {
@@ -1209,23 +1157,6 @@ const GenerateAssignment = () => {
               <span style={{ color: 'var(--text-secondary)' }}>
                 {selectedAssignments.length > 0 ? '1 assignment selected' : 'No assignment selected'}
               </span>
-              <button 
-                onClick={generateRubric}
-                className="btn btn-secondary"
-                disabled={selectedAssignments.length === 0 || isGeneratingRubric}
-              >
-                {isGeneratingRubric ? (
-                  <>
-                    <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: '0.5rem' }} />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <FontAwesomeIcon icon={faFileText} style={{ marginRight: '0.5rem' }} />
-                    Generate Rubric
-                  </>
-                )}
-              </button>
               {selectedAssignments.length > 0 && (
                 <button 
                   onClick={() => setShowSaveModal(true)}
@@ -1673,49 +1604,7 @@ const GenerateAssignment = () => {
         </div>
       )}
 
-      {/* Rubric Name Modal */}
-      {showRubricNameModal && (
-        <div className="modal-overlay" onClick={() => setShowRubricNameModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Name Your Rubric</h3>
-              <button onClick={() => setShowRubricNameModal(false)} className="btn btn-outline btn-sm">
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <label className="form-label">Rubric Name *</label>
-              <input
-                type="text"
-                className="form-input"
-                value={rubricName}
-                onChange={(e) => setRubricName(e.target.value)}
-                placeholder="Enter a name for this rubric"
-                autoFocus
-              />
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-                This rubric will be used to evaluate the selected assignment.
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button 
-                onClick={confirmGenerateRubric}
-                className="btn btn-primary"
-                disabled={!rubricName.trim()}
-              >
-                <FontAwesomeIcon icon={faFileText} style={{ marginRight: '0.5rem' }} />
-                Generate Rubric
-              </button>
-              <button 
-                onClick={() => setShowRubricNameModal(false)}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Rubric generation modal removed intentionally */}
 
       {/* Save Assignment Modal */}
       {showSaveModal && (

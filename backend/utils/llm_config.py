@@ -5,6 +5,7 @@ Manages switching between OpenAI and vLLM configurations
 import os
 from typing import Dict, Any
 from config.settings import settings
+api_key="73a03f5d-59b3-4ef2-8bb72aed4a51"
 
 class LLMConfig:
     """Configuration manager for LLM services"""
@@ -45,16 +46,47 @@ class LLMConfig:
         self.vision_model_url = f"{vision_llm_base_url}/chat/completions"
         self.vision_model_name = vision_model_name
     
-    def get_headers(self) -> Dict[str, str]:
-        """Get appropriate headers for API calls"""
+    # def get_headers(self) -> Dict[str, str]:
+    #     """Get appropriate headers for API calls"""
+    #     headers = {
+    #         "Content-Type": "application/json",
+
+    #     }
+        
+    #     if self.use_openai and self.openai_api_key:
+    #         headers["Authorization"] = f"Bearer {self.openai_api_key}"
+        
+    #     return headers
+    def get_headers(self, is_vision: bool = False) -> Dict[str, str]:
+        """
+        Get appropriate headers for API calls.
+        - If using OpenAI → Always use OPENAI_API_KEY
+        - If using vLLM → Use separate API keys for text and vision models
+        """
         headers = {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization":f"Bearer {api_key}"
         }
-        
-        if self.use_openai and self.openai_api_key:
-            headers["Authorization"] = f"Bearer {self.openai_api_key}"
-        
+
+        # if self.use_openai:
+        #     if not self.openai_api_key:
+        #         raise ValueError("OPENAI_API_KEY is required when USE_OPENAI=true")
+        #     headers["Authorization"] = f"Bearer {self.openai_api_key}"
+        # else:
+        #     # Use different API keys for text vs vision
+        #     if is_vision:
+        #         api_key = settings.VISION_LLM_API_KEY
+        #     else:
+        #         api_key = settings.LLM_API_KEY
+
+        #     if not api_key:
+        #         raise ValueError("Missing API key for LLM service")
+
+        #     headers["Authorization"] = f"Bearer {api_key}"
+
         return headers
+
+
     
     def get_config_info(self) -> Dict[str, Any]:
         """Get current configuration information"""

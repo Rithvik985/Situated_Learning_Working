@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from database.models import GeneratedAssignment as DBGeneratedAssignment, AssignmentRubric as DBAssignmentRubric, Course as DBCourse
 from database.repository import get_db
 from services.llm_service import LLMService
-from services.rubric_service import RubricService
+# from services.rubric_service import RubricService  # Disabled: rubric generation via AI
 from config.settings import settings
 import logging
 from datetime import datetime
@@ -107,9 +107,9 @@ class AssignmentEditRequest(BaseModel):
     description: str
     reason_for_change: str = Field(..., description="Mandatory reason for editing")
 
-class RubricGenerationRequest(BaseModel):
-    assignment_ids: List[str] = Field(..., description="List of selected assignment IDs")
-    rubric_name: Optional[str] = Field(None, description="Custom name for the rubric")
+# class RubricGenerationRequest(BaseModel):
+#     assignment_ids: List[str] = Field(..., description="List of selected assignment IDs")
+#     rubric_name: Optional[str] = Field(None, description="Custom name for the rubric")
 
 class RubricEditRequest(BaseModel):
     criteria: Dict[str, Any]
@@ -460,66 +460,12 @@ async def edit_assignment(
         logger.error(f"Error editing assignment {assignment_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to edit assignment: {str(e)}")
 
-@router.post("/rubric/generate")
-async def generate_rubric(
-    request: RubricGenerationRequest,
-    db: Session = Depends(get_db)
-):
-    """Generate rubric for selected assignments"""
-    try:
-        if not request.assignment_ids:
-            raise HTTPException(status_code=400, detail="At least one assignment must be selected")
-        
-        # Get selected assignments
-        assignments = db.query(DBGeneratedAssignment).filter(
-            DBGeneratedAssignment.id.in_([uuid.UUID(aid) for aid in request.assignment_ids])
-        ).all()
-        
-        if not assignments:
-            raise HTTPException(status_code=404, detail="No assignments found")
-        
-        # Combine assignment descriptions for rubric generation
-        combined_text = "\n\n".join([
-            f"Assignment {i+1}: {assignment.title}\n{assignment.description}"
-            for i, assignment in enumerate(assignments)
-        ])
-        
-        # Initialize rubric service
-        rubric_service = RubricService()
-        
-        # Generate rubric
-        rubric_data = await rubric_service.generate_rubric(
-            text=combined_text,
-            doc_type="Situated Learning Assignment"
-        )
-        
-        # Save to database with custom name if provided
-        rubric_name = request.rubric_name or rubric_data.get("rubric_name", "Generated Rubric")
-        
-        # Update the rubric_data to use the user-provided name consistently
-        rubric_data["rubric_name"] = rubric_name
-        
-        db_rubric = DBAssignmentRubric(
-            id=uuid.uuid4(),
-            assignment_ids=[assignment.id for assignment in assignments],
-            rubric_name=rubric_name,
-            doc_type=rubric_data.get("doc_type", "Assignment"),
-            criteria=rubric_data
-        )
-        
-        db.add(db_rubric)
-        db.commit()
-        
-        return {
-            "message": "Rubric generated successfully",
-            "rubric_id": str(db_rubric.id),
-            "rubric": rubric_data
-        }
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error generating rubric: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate rubric: {str(e)}")
+"""
+Rubric generation via AI has been disabled in favor of using a hardcoded rubric
+defined in MySQL via rubrics.sql. Any prior endpoints related to rubric generation
+are intentionally commented out and the import is disabled above.
+"""
+
 
 @router.put("/rubric/{rubric_id}")
 async def edit_rubric(

@@ -47,7 +47,7 @@ def debug_services():
     print("🔍 Service Configuration Debug:")
     try:
         from services.llm_service import LLMService
-        from services.rubric_service import RubricService
+        # from services.rubric_service import RubricService
         
         llm_service = LLMService()
         print(f"LLM Service - Base URL: {llm_service.base_url}")
@@ -55,11 +55,11 @@ def debug_services():
         print(f"LLM Service - Headers: {llm_service.headers}")
         print()
         
-        rubric_service = RubricService()
-        print(f"Rubric Service - Base URL: {rubric_service.base_url}")
-        print(f"Rubric Service - Model: {rubric_service.model_name}")
-        print(f"Rubric Service - Headers: {rubric_service.headers}")
-        print()
+        # rubric_service = RubricService()
+        # print(f"Rubric Service - Base URL: {rubric_service.base_url}")
+        # print(f"Rubric Service - Model: {rubric_service.model_name}")
+        # print(f"Rubric Service - Headers: {rubric_service.headers}")
+        # print()
         
     except Exception as e:
         print(f"❌ Error loading services: {e}")
