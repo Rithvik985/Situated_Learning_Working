@@ -36,12 +36,12 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "your_openai_api_key_here")
     OPENAI_TEXT_MODEL: str = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
     OPENAI_VISION_MODEL: str = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")
-    LLM_BASE_URL: str = os.getenv("LLM_BASE_URL", "http://172.16.26.22/vllm-llama3.3-gateway/v1")
-    LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME", "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4")
-    VISION_LLM_BASE_URL: str = os.getenv("VISION_LLM_BASE_URL", "http://172.16.26.22/vllm-vision-qwen2.5-gateway/v1")
-    VISION_LLM_MODEL_NAME: str = os.getenv("VISION_LLM_MODEL_NAME", "Qwen/Qwen2.5-VL-32B-Instruct-AWQ")
-    LLM_API_KEY: str = os.getenv("LLM_API_KEY","73a03f5d-59b3-4ef2-8bb72aed4a51")
-    VISION_LLM_API_KEY: str = os.getenv("VISION_LLM_API_KEY","73a03f5d-59b3-4ef2-8bb72aed4a51")
+    LLM_BASE_URL: str = os.getenv("LLM_BASE_URL")
+    LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME")
+    VISION_LLM_BASE_URL: str = os.getenv("VISION_LLM_BASE_URL")
+    VISION_LLM_MODEL_NAME: str = os.getenv("VISION_LLM_MODEL_NAME")
+    LLM_API_KEY: str = os.getenv("LLM_API_KEY")
+    VISION_LLM_API_KEY: str = os.getenv("VISION_LLM_API_KEY")
 
     # File Processing
     MAX_FILE_SIZE: str = os.getenv("MAX_FILE_SIZE", "50MB")
