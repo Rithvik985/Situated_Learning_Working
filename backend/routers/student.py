@@ -394,7 +394,7 @@ class QuestionSetResponse(BaseModel):
     generated_questions: List[str]
     selected_question: Optional[str]
     approval_status: str
-    faculty_remarks: Optional[str]
+    faculty_remarks: Optional[str]=None
     created_at: datetime
 
 

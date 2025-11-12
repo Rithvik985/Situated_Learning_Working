@@ -6,9 +6,11 @@ import { getApiUrl, SERVERS, ENDPOINTS } from '../config/api'
 
 const FacultyDashboard = () => {
   const [students, setStudents] = useState([])
+  const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(false)
-  const [approvalFilter, setApprovalFilter] = useState('all') // 'all' | 'pending' | 'approved'
-  const [evaluationFilter, setEvaluationFilter] = useState('all') // 'all' | 'pending' | 'evaluated' | 'finalized'
+  const [approvalFilter, setApprovalFilter] = useState('all')
+  const [evaluationFilter, setEvaluationFilter] = useState('all')
+  const [courseFilter, setCourseFilter] = useState('all')
   const navigate = useNavigate()
 
   // const load = async () => {
@@ -25,22 +27,27 @@ const FacultyDashboard = () => {
   // }
 
   const load = async () => {
-  setLoading(true)
-  try {
-    // Change this to use the new dashboard endpoint
-    const res = await fetch('/api/faculty/dashboard')
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`)
+    setLoading(true)
+    try {
+      // Load dashboard data
+      const dashboardRes = await fetch('/api/faculty/dashboard')
+      if (!dashboardRes.ok) throw new Error(`HTTP error! status: ${dashboardRes.status}`)
+      const dashboardData = await dashboardRes.json()
+      
+      // Load courses for filter
+      const coursesRes = await fetch('/api/faculty/courses')
+      if (coursesRes.ok) {
+        const coursesData = await coursesRes.json()
+        setCourses(coursesData)
+      }
+      
+      setStudents(dashboardData)
+    } catch (e) {
+      console.error('Error loading dashboard:', e)
+    } finally {
+      setLoading(false)
     }
-    const data = await res.json()
-    console.log('📊 Faculty Dashboard Data:', data)
-    setStudents(data)
-  } catch (e) {
-    console.error('Error loading dashboard:', e)
-  } finally {
-    setLoading(false)
   }
-}
 
   useEffect(() => { load() }, [])
 
@@ -90,7 +97,7 @@ const FacultyDashboard = () => {
     })
   }
 
-  // ✅ Apply both filters
+   // ✅ Apply all filters
   const filteredStudents = students.filter(s => {
     const approvalMatch = 
       approvalFilter === 'all' || 
@@ -103,9 +110,15 @@ const FacultyDashboard = () => {
       (evaluationFilter === 'evaluated' && s.evaluation_status === 'evaluated') ||
       (evaluationFilter === 'finalized' && s.evaluation_status === 'finalized')
     
-    return approvalMatch && evaluationMatch
+    const courseMatch = 
+      courseFilter === 'all' || 
+      s.course_name === courseFilter
+    
+    return approvalMatch && evaluationMatch && courseMatch
   })
 
+  // Get unique course names for filter dropdown
+  const uniqueCourseNames = [...new Set(students.map(s => s.course_name).filter(Boolean))]
   // ✅ Count stats for clarity
   const totalCount = students.length
   const pendingApprovalCount = students.filter(s => s.approval_status !== 'approved').length
@@ -212,7 +225,82 @@ const FacultyDashboard = () => {
       <p style={{ textAlign: 'center', color: 'gray', marginBottom: '2rem' }}>
         View student submissions and manage approvals.
       </p>
+      {/* ✅ Filters Section */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '1rem', 
+        marginBottom: '2rem', 
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {/* Course Filter */}
+        <div>
+          <label style={{ marginRight: '0.5rem', fontWeight: '600' }}>Course:</label>
+          <select 
+            value={courseFilter}
+            onChange={(e) => setCourseFilter(e.target.value)}
+            style={{ 
+              padding: '0.5rem', 
+              borderRadius: '4px', 
+              border: '1px solid #ccc',
+              minWidth: '150px'
+            }}
+          >
+            <option value="all">All Courses</option>
+            {uniqueCourseNames.map(course => (
+              <option key={course} value={course}>{course}</option>
+            ))}
+          </select>
+        </div>
 
+        {/* Approval Filter Button */}
+        <button
+          onClick={handleApprovalFilterClick}
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 
+              approvalFilter === 'pending' ? '#fff3cd' :
+              approvalFilter === 'approved' ? '#d4edda' : '#f8f9fa',
+            color: 
+              approvalFilter === 'pending' ? '#856404' :
+              approvalFilter === 'approved' ? '#155724' : '#343a40',
+            border: '1px solid #dee2e6',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}
+        >
+          <FontAwesomeIcon icon={faFilter} style={{ marginRight: '5px' }} />
+          {approvalFilter === 'all' ? 'All Approvals' : 
+           approvalFilter === 'pending' ? 'Pending Approvals' : 'Approved Only'}
+        </button>
+
+        {/* Evaluation Filter Button */}
+        <button
+          onClick={handleEvaluationFilterClick}
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 
+              evaluationFilter === 'pending' ? '#fff3cd' :
+              evaluationFilter === 'evaluated' ? '#d1ecf1' :
+              evaluationFilter === 'finalized' ? '#d4edda' : '#f8f9fa',
+            color: 
+              evaluationFilter === 'pending' ? '#856404' :
+              evaluationFilter === 'evaluated' ? '#0c5460' :
+              evaluationFilter === 'finalized' ? '#155724' : '#343a40',
+            border: '1px solid #dee2e6',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}
+        >
+          <FontAwesomeIcon icon={faFilter} style={{ marginRight: '5px' }} />
+          {evaluationFilter === 'all' ? 'All Evaluations' :
+           evaluationFilter === 'pending' ? 'Pending Evaluation' :
+           evaluationFilter === 'evaluated' ? 'Evaluated Only' : 'Finalized Only'}
+        </button>
+      </div>
       {/* ✅ Statistics Overview */}
       <div style={{ 
         display: 'grid', 
@@ -385,7 +473,7 @@ const FacultyDashboard = () => {
         </div>
       )}
 
-      {/* ✅ Filter Status Display */}
+      {/* ✅ Filter Status Display - Updated */}
       <div style={{ 
         marginTop: '1rem', 
         padding: '0.5rem', 
@@ -397,6 +485,10 @@ const FacultyDashboard = () => {
       }}>
         Showing: 
         <strong style={{ marginLeft: '5px' }}>
+          {courseFilter === 'all' ? 'All Courses' : courseFilter}
+        </strong>
+        {' • '}
+        <strong>
           {approvalFilter === 'all' ? 'All Approvals' : 
            approvalFilter === 'pending' ? 'Pending Approvals' : 'Approved Only'}
         </strong>

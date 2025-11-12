@@ -12,6 +12,7 @@ Following the requirements:
 
 import uuid
 import logging
+import os
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
@@ -35,6 +36,9 @@ from storage.minio_client import minio_client
 # Configure logging
 logger = logging.getLogger('evaluation_server.router')
 logger.setLevel(logging.DEBUG)
+
+# Control whether to log full extracted content. Set env var SHOW_FULL_EXTRACTED_LOGS=true to enable.
+SHOW_FULL_EXTRACTED_LOGS = os.getenv("SHOW_FULL_EXTRACTED_LOGS", "false").lower() in ("1", "true", "yes")
 
 router = APIRouter()
 
@@ -705,6 +709,21 @@ async def upload_student_submissions(
                 ocr_confidence = processing_result.get("confidence", 1.0)
                 extraction_method = processing_result.get("extraction_method", "standard")
                 processing_status = "processed"
+                # Log extracted text (full or preview) depending on environment flag
+                try:
+                    if extracted_text:
+                        text_length = len(extracted_text)
+                        if SHOW_FULL_EXTRACTED_LOGS:
+                            logger.info(f"[EXTRACTED TEXT - FULL] File: {file.filename}, Submission: {submission_id}, Length: {text_length} chars")
+                            logger.info(f"Content:\n{extracted_text}")
+                        else:
+                            preview = extracted_text[:200] + "..." if text_length > 200 else extracted_text
+                            logger.info(f"[EXTRACTED TEXT] File: {file.filename}, Submission: {submission_id}, Length: {text_length} chars, Preview: {preview!r}")
+                    else:
+                        logger.warning(f"[EXTRACTED TEXT] File: {file.filename} extracted but text is empty or None")
+                except Exception as e:
+                    # Defensive: don't break upload on logging issues
+                    logger.exception(f"Error while logging extracted text: {e}")
             else:
                 extracted_text = None
                 ocr_confidence = 0.0
@@ -821,6 +840,21 @@ async def get_assignment_submissions(
         
         submission_responses = []
         for submission in submissions:
+            # Optionally log stored extracted text for each submission
+            try:
+                if submission.extracted_text:
+                    text_length = len(submission.extracted_text)
+                    if SHOW_FULL_EXTRACTED_LOGS:
+                        logger.info(f"[STORED TEXT - FULL] Submission: {submission.id}, Length: {text_length} chars")
+                        logger.info(f"Content:\n{submission.extracted_text}")
+                    else:
+                        preview = submission.extracted_text[:200] + "..." if text_length > 200 else submission.extracted_text
+                        logger.info(f"[STORED TEXT] Submission: {submission.id}, Length: {text_length} chars, Preview: {preview!r}")
+                else:
+                    logger.warning(f"[STORED TEXT] Submission: {submission.id} has no extracted text")
+            except Exception as e:
+                logger.exception(f"Error while logging stored extracted text for submission: {e}")
+
             submission_responses.append(SubmissionResponse(
                 id=str(submission.id),
                 file_name=submission.original_file_name,
@@ -925,7 +959,19 @@ async def evaluate_submissions_against_rubric(
                 if not submission.extracted_text:
                     logger.warning(f"No extracted text for submission {submission.id}, skipping evaluation")
                     continue
-                
+                # Optionally log the text that will be evaluated
+                try:
+                    if submission.extracted_text:
+                        text_length = len(submission.extracted_text)
+                        if SHOW_FULL_EXTRACTED_LOGS:
+                            logger.info(f"[EVALUATION TEXT - FULL] Submission: {submission.id}, Length: {text_length} chars")
+                            logger.info(f"Content:\n{submission.extracted_text}")
+                        else:
+                            preview = submission.extracted_text[:200] + "..." if text_length > 200 else submission.extracted_text
+                            logger.info(f"[EVALUATION TEXT] Submission: {submission.id}, Length: {text_length} chars, Preview: {preview!r}")
+                except Exception as e:
+                    logger.exception(f"Error while logging submission text before evaluation: {e}")
+
                 # Use submission processing service for evaluation
                 evaluation_result = submission_processor.evaluate_submission(
                     submission_text=submission.extracted_text,

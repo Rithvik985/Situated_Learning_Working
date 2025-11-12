@@ -26,7 +26,7 @@ const FacultyEvaluation = () => {
   const [rawEvalResponse, setRawEvalResponse] = useState(null);
   const [showRawResponse, setShowRawResponse] = useState(false);
 
-  // ✅ Fetch pending submissions
+  // ✅ Fetch pending submissions (basic info)
   useEffect(() => {
     const fetchSubmissions = async () => {
       try {
@@ -41,6 +41,26 @@ const FacultyEvaluation = () => {
     };
     fetchSubmissions();
   }, []);
+
+  // ✅ Fetch detailed submission when one is selected
+  useEffect(() => {
+    const fetchSubmissionDetails = async () => {
+      if (!selectedSubmission) return;
+      
+      try {
+        const res = await fetch(`${getApiUrl(SERVERS.FACULTY, "GET_SUBMISSION")}/${selectedSubmission.id}`);
+        if (!res.ok) throw new Error("Failed to fetch submission details");
+        const detailedSubmission = await res.json();
+        
+        // Update selected submission with full details
+        setSelectedSubmission(detailedSubmission);
+      } catch (e) {
+        setError("Error loading submission details: " + e.message);
+      }
+    };
+    
+    fetchSubmissionDetails();
+  }, [selectedSubmission?.id]); // Only fetch when submission ID changes
 
   // Handle updates to individual criterion scores
   const handleCriterionScoreUpdate = (dimensionIndex, criterionIndex, delta) => {
@@ -331,6 +351,58 @@ const FacultyEvaluation = () => {
         {/* ✅ Evaluation Panel */}
         {selectedSubmission && (
           <div>
+            {/* ✅ Student Submission Content - DISPLAYED FIRST */}
+            <div className="card" style={{ marginBottom: "1rem" }}>
+              <h3>
+                <FontAwesomeIcon icon={faUser} style={{ marginRight: "0.5rem" }} />
+                Student Submission
+              </h3>
+              
+              {/* Submission Metadata */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr', 
+                gap: '1rem', 
+                marginBottom: '1rem',
+                padding: '1rem',
+                // backgroundColor: '#f8f9fa',
+                borderRadius: '4px'
+              }}>
+                <div>
+                  <strong>Student ID:</strong> {selectedSubmission.student_id}
+                </div>
+                <div>
+                  <strong>Submitted:</strong> {new Date(selectedSubmission.submission_date).toLocaleDateString()}
+                </div>
+                {selectedSubmission.assignment_details && (
+                  <>
+                    <div>
+                      <strong>Assignment:</strong> {selectedSubmission.assignment_details.title}
+                    </div>
+                    <div>
+                      <strong>Course:</strong> {selectedSubmission.assignment_details.course_name}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Submission Content */}
+              <div style={{
+                // border: '1px solid #e9ecef',
+                borderRadius: '4px',
+                padding: '1rem',
+                // backgroundColor: '#fff',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                whiteSpace: 'pre-wrap',
+                lineHeight: '1.5',
+                fontSize: '0.95rem'
+              }}>
+                {selectedSubmission.content || 'No submission content available.'}
+              </div>
+            </div>
+
+            {/* Analysis Panel */}
             <div className="card" style={{ marginBottom: "1rem" }}>
               <h3>Submission Analysis</h3>
               <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
@@ -454,8 +526,6 @@ const FacultyEvaluation = () => {
                     className="card" 
                     style={{ 
                       marginBottom: "1.5rem", 
-                      // border: "1px solid #e9ecef",
-                      // background: '#fff'
                     }}
                   >
                     {/* Dimension Header */}
@@ -464,8 +534,6 @@ const FacultyEvaluation = () => {
                       justifyContent: "space-between", 
                       alignItems: "center",
                       padding: "1rem",
-                      // borderBottom: "1px solid #e9ecef",
-                      // background: '#f8f9fa'
                     }}>
                       <div>
                         <strong style={{ fontSize: '1.1em' }}>{dimension.category}</strong>
@@ -477,10 +545,8 @@ const FacultyEvaluation = () => {
                         display: "flex", 
                         alignItems: "center", 
                         gap: "0.5rem",
-                        // background: '#fff',
                         padding: '0.5rem 1rem',
                         borderRadius: '4px',
-                        // border: '1px solid #dee2e6'
                       }}>
                         <span style={{ 
                           fontWeight: "bold", 
@@ -507,9 +573,7 @@ const FacultyEvaluation = () => {
                             alignItems: "flex-start",
                             padding: "0.75rem",
                             marginBottom: "0.5rem",
-                            // background: '#f8f9fa',
                             borderRadius: '4px',
-                            // border: '1px solid #e9ecef'
                           }}
                         >
                           <div style={{ flex: 1, marginRight: '1rem' }}>
@@ -552,10 +616,8 @@ const FacultyEvaluation = () => {
                               textAlign: "center", 
                               fontWeight: "bold",
                               fontSize: '1em',
-                              // background: '#fff',
                               padding: '0.375rem 0.75rem',
                               borderRadius: '4px',
-                              // border: '1px solid #dee2e6'
                             }}>
                               {Number(criterion.score).toFixed(2)}/4
                             </span>
@@ -586,7 +648,6 @@ const FacultyEvaluation = () => {
                 <div style={{ 
                   marginTop: "2rem", 
                   paddingTop: "1rem", 
-                  // borderTop: "1px solid #e9ecef",
                   display: "flex", 
                   justifyContent: "space-between", 
                   alignItems: "center" 

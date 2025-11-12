@@ -1,0 +1,297 @@
+/* Notification Modal Styles */
+
+/* Backdrop - Semi-transparent overlay */
+.notification-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  animation: fadeIn 0.2s ease-out;
+  pointer-events: auto;
+}
+
+/* Modal Container */
+.notification-modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+/* Base Modal */
+.notification-modal {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  position: relative;
+  animation: modalSlideIn 0.3s ease-out;
+  word-break: break-word;
+}
+
+.notification-modal.removing {
+  animation: modalSlideOut 0.3s ease-out;
+}
+
+/* Modal Icon */
+.modal-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Modal Content */
+.modal-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-message {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 15px;
+  word-wrap: break-word;
+}
+
+/* Close Button */
+.modal-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  border-radius: 4px;
+}
+
+.modal-close-btn:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ===== SUCCESS MODAL ===== */
+.notification-modal-success {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  border: 2px solid #28a745;
+  color: #155724;
+}
+
+.notification-modal-success .modal-icon {
+  color: #28a745;
+  background-color: rgba(40, 167, 69, 0.1);
+}
+
+.notification-modal-success .modal-close-btn {
+  color: #155724;
+}
+
+.notification-modal-success .modal-close-btn:hover {
+  background-color: rgba(21, 87, 36, 0.1);
+}
+
+/* ===== ERROR MODAL ===== */
+.notification-modal-error {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  border: 2px solid #dc3545;
+  color: #721c24;
+}
+
+.notification-modal-error .modal-icon {
+  color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.notification-modal-error .modal-close-btn {
+  color: #721c24;
+}
+
+.notification-modal-error .modal-close-btn:hover {
+  background-color: rgba(114, 28, 36, 0.1);
+}
+
+/* ===== WARNING MODAL ===== */
+.notification-modal-warning {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border: 2px solid #ffc107;
+  color: #856404;
+}
+
+.notification-modal-warning .modal-icon {
+  color: #ffc107;
+  background-color: rgba(255, 193, 7, 0.1);
+}
+
+.notification-modal-warning .modal-close-btn {
+  color: #856404;
+}
+
+.notification-modal-warning .modal-close-btn:hover {
+  background-color: rgba(133, 100, 4, 0.1);
+}
+
+/* ===== INFO MODAL ===== */
+.notification-modal-info {
+  background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+  border: 2px solid #17a2b8;
+  color: #0c5460;
+}
+
+.notification-modal-info .modal-icon {
+  color: #17a2b8;
+  background-color: rgba(23, 162, 184, 0.1);
+}
+
+.notification-modal-info .modal-close-btn {
+  color: #0c5460;
+}
+
+.notification-modal-info .modal-close-btn:hover {
+  background-color: rgba(12, 84, 96, 0.1);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideOut {
+  from {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .notification-modal-container {
+    width: 85%;
+    max-width: 450px;
+  }
+
+  .notification-modal {
+    padding: 20px;
+    font-size: 14px;
+  }
+
+  .modal-icon {
+    font-size: 24px;
+    min-width: 36px;
+    height: 36px;
+  }
+
+  .modal-message {
+    font-size: 14px;
+  }
+
+  .modal-close-btn {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .notification-modal-container {
+    width: 90%;
+    max-width: 100%;
+    gap: 10px;
+  }
+
+  .notification-modal {
+    padding: 16px;
+    font-size: 13px;
+    gap: 12px;
+  }
+
+  .modal-icon {
+    font-size: 22px;
+    min-width: 32px;
+    height: 32px;
+  }
+
+  .modal-message {
+    font-size: 13px;
+  }
+
+  .modal-close-btn {
+    font-size: 16px;
+    top: 8px;
+    right: 8px;
+  }
+}
+
+/* Scrollbar styling for multiple notifications */
+.notification-modal-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.notification-modal-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notification-modal-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.notification-modal-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}

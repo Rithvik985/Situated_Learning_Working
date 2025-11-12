@@ -5,17 +5,6 @@
 
 // API Configuration for all services
 const API_CONFIG = {
-  // Faculty Service
-  FACULTY: {
-    BASE_URL: '/api/faculty',
-    ENDPOINTS: {
-      PENDING_SUBMISSIONS: '/pending-submissions',
-      EVALUATE_SUBMISSION: '/pending-submissions',
-      FACULTY_EVALUATION_UPDATE: '/evaluate',
-      RUBRIC: '/rubric',
-    }
-  },
-
   // Upload Service
   UPLOAD: {
     BASE_URL: '/upload',
@@ -97,10 +86,13 @@ const API_CONFIG = {
       COURSES: '/courses',
       AI_CHECK: '/ai-check',
       HEALTH: '/health',
+      ANALYZE: '/analyze',
+      SUBMIT_TO_FACULTY: '/submit-to-faculty',
+      MY_SUBMISSIONS: '/my-submissions'
     }
   },
 
-    // Faculty Service
+  // Faculty Service
   FACULTY: {
     BASE_URL: '/api/faculty',
     ENDPOINTS: {
@@ -109,21 +101,17 @@ const API_CONFIG = {
       COURSES: '/courses',
       STUDENTS: '/students',
       EVALUATION: '/evaluation',
-      FACULTY_EVALUATION_UPDATE: '/evaluation/update',  // Add this for criterion updates
       HEALTH: '/health',
       STATUS: '/status',
       FACULTY_STUDENTS: '/students',
       FACULTY_APPROVE_QUESTION: '/questions',
       FACULTY_QUESTIONS_BY_STUDENT: '/questions/student',
       GET_SUBMISSION: '/submissions',
-
-
-      // core endpoints used by frontend
       GET_RUBRIC: '/rubric',
-      PENDING_SUBMISSIONS: '/pending-submissions', // GET /api/faculty/pending-submissions
-      EVALUATE_SUBMISSION: '/pending-submissions',  // will append /{id}/evaluate on the client
-      FACULTY_EVALUATION_UPDATE: '/evaluate',  // for criterion score updates - matches backend route
-      DETECT_AI: '/submissions'  // for AI detection - will append /{id}/detect-ai on the client
+      PENDING_SUBMISSIONS: '/pending-submissions',
+      EVALUATE_SUBMISSION: '/pending-submissions',
+      FACULTY_EVALUATION_UPDATE: '/evaluate',
+      DETECT_AI: '/submissions'
     }
   }
 
@@ -200,7 +188,10 @@ export const ENDPOINTS = {
   LIST_ASSIGNMENTS: 'LIST_ASSIGNMENTS',
   STUDENT_COURSES: 'COURSES',
   AI_CHECK: 'AI_CHECK',
-
+  STUDENT_ANALYZE: 'ANALYZE',
+  STUDENT_SUBMIT_TO_FACULTY: 'SUBMIT_TO_FACULTY', 
+  STUDENT_MY_SUBMISSIONS: 'MY_SUBMISSIONS',
+  
   // Faculty endpoints
   FACULTY_APPROVE_QUESTION: 'QUESTIONS',
   FACULTY_FINALIZE: 'FINALIZE',

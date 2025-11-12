@@ -6,25 +6,55 @@ import {
   faChevronLeft, faClipboardCheck,
   faUpload
 } from '@fortawesome/free-solid-svg-icons';
-import { getApiUrl, getBaseUrl, SERVERS } from '../config/api';
+import { getApiUrl, getBaseUrl, SERVERS, ENDPOINTS } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useNotifications } from '../hooks/useNotifications';
+import NotificationModal from '../components/NotificationModal';
 
 const StudentEvaluation = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { notifications, showNotification, removeNotification } = useNotifications();
   
-  // Initialize state from navigation if available
-  const [submission, setSubmission] = useState('');
+  // Initialize state from navigation if available - FIX THIS
+  const [submission, setSubmission] = useState(location.state?.submissionContent || '');
   const [studentId, setStudentId] = useState(location.state?.studentId || '');
   const [savedAssignments, setSavedAssignments] = useState([]);
-  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [selectedAssignment, setSelectedAssignment] = useState(location.state?.selectedAssignment || null);
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [submissionId, setSubmissionId] = useState(null);
+  const [submissionId, setSubmissionId] = useState(location.state?.submissionId || null);
   const [submissions, setSubmissions] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [aiDetectionResults, setAiDetectionResults] = useState(null);
+
+  // Handle incoming state from PDF upload - ADD THIS EFFECT
+  useEffect(() => {
+    if (location.state?.fromUpload) {
+      console.log('Received state from upload:', location.state);
+      
+      if (location.state.selectedAssignment) {
+        setSelectedAssignment(location.state.selectedAssignment);
+      }
+      if (location.state.studentId) {
+        setStudentId(location.state.studentId);
+      }
+      if (location.state.submissionContent) {
+        setSubmission(location.state.submissionContent);
+      }
+      if (location.state.submissionId) {
+        setSubmissionId(location.state.submissionId);
+      }
+      if (location.state.uploadedFiles) {
+        console.log('Uploaded files:', location.state.uploadedFiles);
+        // You might want to do something with the uploaded files data
+      }
+      
+      // Clear the location state to avoid re-triggering
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Load saved assignments and submission history when studentId changes
   useEffect(() => {
@@ -33,13 +63,21 @@ const StudentEvaluation = () => {
         if (!studentId) return;
         
         // Fetch saved assignments
-        const assignmentsRes = await fetch(getApiUrl(SERVERS.STUDENT, 'LIST_ASSIGNMENTS') + `?student_id=${studentId}`);
+        const assignmentsRes = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.LIST_ASSIGNMENTS) + `?student_id=${studentId}`);
         if (!assignmentsRes.ok) throw new Error('Failed to fetch assignments');
         const assignmentsData = await assignmentsRes.json();
         setSavedAssignments(assignmentsData);
 
+        // If we have a selectedAssignment from navigation but not in local state, find it
+        if (location.state?.selectedAssignment && !selectedAssignment) {
+          const navAssignment = assignmentsData.find(a => a.id === location.state.selectedAssignment.id);
+          if (navAssignment) {
+            setSelectedAssignment(navAssignment);
+          }
+        }
+
         // Fetch submission history
-        const submissionsRes = await fetch(`${getBaseUrl(SERVERS.STUDENT)}/my-submissions/${studentId}`);
+        const submissionsRes = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT_MY_SUBMISSIONS) + `/${studentId}`);
         if (!submissionsRes.ok) throw new Error('Failed to fetch submissions');
         const submissionsData = await submissionsRes.json();
         setSubmissions(submissionsData);
@@ -48,13 +86,15 @@ const StudentEvaluation = () => {
       }
     };
     fetchData();
-  }, [studentId]);
+  }, [studentId, location.state, selectedAssignment]);
+
 
   const submitForAnalysis = async () => {
     setLoading(true);
     setError(null);
+    showNotification('📊 Analyzing your submission...', 'info', 0);
     try {
-      const res = await fetch(`${getBaseUrl(SERVERS.STUDENT)}/analyze`, {
+      const res = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT_ANALYZE), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -71,19 +111,21 @@ const StudentEvaluation = () => {
 
       setAnalysis(data);
       if (data.submission_id) {
-  setSubmissionId(data.submission_id);
-  console.log("Stored submission ID:", data.submission_id);
-} else {
-  console.warn("⚠️ No submission_id returned in analysis response");
-}
+        setSubmissionId(data.submission_id);
+        console.log("Stored submission ID:", data.submission_id);
+      } else {
+        console.warn("⚠️ No submission_id returned in analysis response");
+      }
+      showNotification('✅ Analysis completed successfully!', 'success');
       // Refresh submissions list
-      const submissionsRes = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT.MY_SUBMISSIONS) + `/${studentId}`);
+      const submissionsRes = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT_MY_SUBMISSIONS) + `/${studentId}`);
       if (submissionsRes.ok) {
         const submissionsData = await submissionsRes.json();
         setSubmissions(submissionsData);
       }
     } catch (e) {
       setError(e.message);
+      showNotification(`❌ Analysis failed: ${e.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -92,10 +134,11 @@ const StudentEvaluation = () => {
   const submitToFaculty = async (submissionId) => {
     setLoading(true);
     setError(null);
+    showNotification('📤 Submitting to faculty...', 'info', 0);
     try {
       console.log("Submitting to faculty with:", { studentId, submissionId });
 
-      const res = await fetch(`${getBaseUrl(SERVERS.STUDENT)}/submit-to-faculty`, {
+      const res = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT_SUBMIT_TO_FACULTY), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,14 +149,16 @@ const StudentEvaluation = () => {
 
       if (!res.ok) throw new Error('Failed to submit to faculty');
       
+      showNotification('✅ Submitted to faculty successfully!', 'success');
       // Refresh submissions list
-      const submissionsRes = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT.MY_SUBMISSIONS) + `/${studentId}`);
+      const submissionsRes = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT_MY_SUBMISSIONS) + `/${studentId}`);
       if (submissionsRes.ok) {
         const submissionsData = await submissionsRes.json();
         setSubmissions(submissionsData);
       }
     } catch (e) {
       setError(e.message);
+      showNotification(`❌ Submission failed: ${e.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -121,6 +166,12 @@ const StudentEvaluation = () => {
 
   return (
     <div className="container" style={{ padding: '2rem' }}>
+      {/* Notification Modal */}
+      <NotificationModal 
+        notifications={notifications} 
+        onRemove={removeNotification} 
+      />
+
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
           <button 
@@ -324,7 +375,7 @@ const StudentEvaluation = () => {
             </div>
 
             {sub.faculty_evaluation && (
-              <div className="card" style={{ marginTop: '1rem', background: '#f8f9fa' }}>
+              <div className="card" style={{ marginTop: '1rem' }}>
                 <h4>Faculty Evaluation</h4>
                 <div>
                   <strong>Score:</strong> {Object.values(sub.faculty_evaluation.rubric_scores).reduce((a, b) => a + b, 0)}
