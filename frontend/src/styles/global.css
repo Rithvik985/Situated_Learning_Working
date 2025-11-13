@@ -45,7 +45,7 @@ body {
   color: var(--text-primary);
   background: var(--bg-dark);
   overflow-x: hidden;
-  padding: 3%;
+  /* padding: 3%; */
 }
 
 /* Typography */

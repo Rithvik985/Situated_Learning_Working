@@ -88,7 +88,8 @@ const API_CONFIG = {
       HEALTH: '/health',
       ANALYZE: '/analyze',
       SUBMIT_TO_FACULTY: '/submit-to-faculty',
-      MY_SUBMISSIONS: '/my-submissions'
+      MY_SUBMISSIONS: '/my-submissions',
+      APPROVED_NOT_SAVED: '/questions/approved-not-saved'
     }
   },
 
@@ -186,11 +187,13 @@ export const ENDPOINTS = {
   STATUS: 'STATUS',
   SUBMIT: 'SUBMIT',
   LIST_ASSIGNMENTS: 'LIST_ASSIGNMENTS',
+  APPROVED_NOT_SAVED: 'APPROVED_NOT_SAVED', // ← ADD THIS
   STUDENT_COURSES: 'COURSES',
   AI_CHECK: 'AI_CHECK',
   STUDENT_ANALYZE: 'ANALYZE',
   STUDENT_SUBMIT_TO_FACULTY: 'SUBMIT_TO_FACULTY', 
   STUDENT_MY_SUBMISSIONS: 'MY_SUBMISSIONS',
+ 
   
   // Faculty endpoints
   FACULTY_APPROVE_QUESTION: 'QUESTIONS',

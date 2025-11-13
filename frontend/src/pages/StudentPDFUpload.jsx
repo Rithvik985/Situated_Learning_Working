@@ -154,59 +154,98 @@ const StudentPDFUpload = () => {
       }
 
       const result = await response.json();
+      console.log('Upload response:', result); // Debug log
+        // Then in your uploadSubmissions function, call it:
+      debugResponse(result); // Add this line
       
-      // FIX: Check if result.files exists, otherwise create a fallback
-      let updatedFiles = [];
+      // FIX: Properly extract the text content from response
+      let extractedText = '';
+      let finalSubmissionId = '';
       
-      if (result.files && Array.isArray(result.files)) {
-        // Use server response if available
-        updatedFiles = result.files.map((serverFile, index) => ({
-          ...uploadedFiles[index],
-          id: serverFile.id || uploadedFiles[index].id,
-          submission_id: serverFile.id || uploadedFiles[index].id,
-          processing_status: serverFile.processing_status || 'processed',
-          extraction_method: serverFile.extraction_method || 'standard',
-          ocr_confidence: serverFile.ocr_confidence || 1.0,
-          extracted_text_preview: serverFile.extracted_text ? 
-            serverFile.extracted_text.substring(0, 200) + '...' : 'Text extraction completed',
-          file_path: serverFile.file_path
-        }));
+      if (result && result.length > 0) {
+        // The backend returns an array of processed submissions
+        const processedSubmission = result[0];
+        finalSubmissionId = processedSubmission.id;
+        
+        // EXTRACT THE TEXT CONTENT - FIX THIS PART
+        if (processedSubmission.extracted_text) {
+          extractedText = processedSubmission.extracted_text;
+          console.log('Extracted text length:', extractedText.length);
+        } else {
+          console.warn('No extracted_text in response, checking other fields:', processedSubmission);
+          // Try alternative fields
+          if (processedSubmission.content) {
+            extractedText = processedSubmission.content;
+          }
+        }
       } else {
-        // Fallback: create file objects from uploaded files
-        updatedFiles = uploadedFiles.map(file => ({
-          ...file,
-          processing_status: 'processed',
-          extraction_method: 'standard',
-          ocr_confidence: 1.0,
-          extracted_text_preview: 'Text extraction completed successfully',
-          submission_id: result.submission_id || file.id
-        }));
+        throw new Error('No processed submission data received from server');
       }
+
+      if (!extractedText) {
+        console.warn('No text content extracted from file');
+        extractedText = 'File processed but no text could be extracted. Please try manual input or a different file.';
+      }
+
+      // Update local files state with processing results
+      const updatedFiles = uploadedFiles.map((file, index) => ({
+        ...file,
+        id: finalSubmissionId || file.id,
+        submission_id: finalSubmissionId,
+        processing_status: 'processed',
+        extraction_method: 'standard',
+        ocr_confidence: 1.0,
+        extracted_text_preview: extractedText ? 
+          extractedText.substring(0, 200) + '...' : 'Text extraction completed',
+        file_path: result[0]?.file_path,
+        // Store the full extracted text for analysis
+        full_extracted_text: extractedText
+      }));
 
       setUploadedFiles(updatedFiles);
 
-      // Navigate back to StudentEvaluation with the processed submission
+      // Navigate back with the ACTUAL EXTRACTED TEXT
       navigate('/student/evaluation', {
         state: {
           studentId,
           selectedAssignment,
-          submissionContent: result.content || updatedFiles[0]?.extracted_text_preview,
-          submissionId: result.submission_id || updatedFiles[0]?.id,
+          submissionContent: extractedText, // THIS IS THE CRITICAL PART
+          submissionId: finalSubmissionId,
           uploadedFiles: updatedFiles,
-          processingComplete: true
-        }
+          processingComplete: true,
+          fromUpload: true
+        },
+        replace: true
       });
     } catch (err) {
       setError(err.message);
+      console.error('Upload error:', err);
     } finally {
       setUploadingFiles(false);
     }
   };
-
   const removeFile = (fileId) => {
     setUploadedFiles(files => files.filter(f => f.id !== fileId));
     setError(null);
   };
+
+    // Add this helper function to debug the API response
+  const debugResponse = (result) => {
+    console.log('=== DEBUG API RESPONSE ===');
+    console.log('Full response:', result);
+    if (result && result.length > 0) {
+      const firstItem = result[0];
+      console.log('First item keys:', Object.keys(firstItem));
+      console.log('extracted_text exists:', 'extracted_text' in firstItem);
+      console.log('extracted_text value:', firstItem.extracted_text);
+      console.log('extracted_text length:', firstItem.extracted_text ? firstItem.extracted_text.length : 0);
+      console.log('content exists:', 'content' in firstItem);
+      console.log('content value:', firstItem.content);
+    }
+    console.log('=== END DEBUG ===');
+  };
+
+
 
   return (
     <div className="container" style={{ padding: '2rem', minHeight: '100vh' }}>

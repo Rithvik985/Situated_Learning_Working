@@ -62,6 +62,7 @@ class LLMService:
 3. **Universal Applicability**: Ensure assignments work across different companies, roles, and industries within the domain
 4. **Real-World Integration**: Connect theoretical concepts to practical workplace applications
 5. **Professional Output**: Generate deliverables that have actual workplace value
+6. **Unique Title for Each Assignment based on the content generated**: The title for each assignment should be different based on the content generated
 
 ### Assignment Structure:
 1. **Problem Statement**: 
@@ -118,6 +119,7 @@ Create a situated learning assignment following the system guidelines that:
 3. Includes 3-4 progressive tasks suitable for the difficulty level
 4. Produces professional deliverables applicable across various work contexts
 5. Maintains universal applicability while ensuring industry relevance"""
+
 
         return prompt
 

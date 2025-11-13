@@ -106,6 +106,9 @@ class GeneratedAssignment(Base):
     # Relationships
     course = relationship("Course", back_populates="generated_assignments")
     
+    # ADD THIS RELATIONSHIP - CRITICAL
+    student_question_sets = relationship("StudentQuestionSet", back_populates="assignment")
+    
     # Constraints
     __table_args__ = (
         CheckConstraint("difficulty_level IN ('Beginner', 'Intermediate', 'Advanced')", name='check_difficulty_level'),
@@ -255,20 +258,23 @@ class StudentQuestionSet(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id", ondelete="SET NULL"))
-    student_id = Column(String(255), nullable=False)  # external user id/email
+    student_id = Column(String(255), nullable=False)
     domain = Column(String(255), nullable=False)
     service_category = Column(String(255))
     department = Column(String(255))
-    contextual_inputs = Column(JSONB)  # any extra dropdown/context info
+    contextual_inputs = Column(JSONB)
     generated_questions = Column(ARRAY(Text), nullable=False)
     selected_question = Column(Text)
-    approval_status = Column(String(50), default='pending')  # pending, approved, rejected
+    approval_status = Column(String(50), default='pending')
     approved_by = Column(String(255))
     faculty_remarks = Column(Text)
+    # ADD THIS FIELD - CRITICAL
+    assignment_id = Column(UUID(as_uuid=True), ForeignKey("generated_assignments.id", ondelete="SET NULL"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     course = relationship("Course", back_populates="student_question_sets")
+    assignment = relationship("GeneratedAssignment", back_populates="student_question_sets")
 
     __table_args__ = (
         CheckConstraint("approval_status IN ('pending','approved','rejected')", name='check_approval_status'),

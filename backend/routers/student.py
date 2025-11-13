@@ -51,6 +51,7 @@ class SWOTRequest(BaseModel):
     student_id: str
     assignment_id: str
     content: str
+    submission_id: Optional[str] = None  # ← ADD THIS for file uploads
 
 class SubmitToFacultyRequest(BaseModel):
     """Request model for submitting to faculty"""
@@ -87,57 +88,161 @@ logger = logging.getLogger(__name__)
 # Initialize the LLM service
 llm_service = LLMAnalysisService()
 
+# @router.post("/analyze", response_model=SWOTAnalysis)
+# async def analyze_submission(request: SWOTRequest, db: Session = Depends(get_db)):
+#     """
+#     Perform SWOT analysis on a student's submission using LLM.
+#     Creates a submission first, then runs SWOT and links it.
+#     """
+#     try:
+#         # Step 1: Create submission FIRST
+#         new_submission = DBStudentSubmission(
+#             student_id=request.student_id,
+#             assignment_id=request.assignment_id,
+#             course_id=db.query(DBGeneratedAssignment.course_id)
+#                         .filter(DBGeneratedAssignment.id == request.assignment_id)
+#                         .scalar(),
+#             content=request.content,
+#             evaluation_status="draft",
+#             processing_status="processing"
+#         )
+#         db.add(new_submission)
+#         db.commit()
+#         db.refresh(new_submission)
+
+#         # Step 2: Run LLM SWOT with submission_id
+#         swot_data = await llm_service.analyze_submission(
+#             request=request,
+#             db=db,
+#             submission_id=str(new_submission.id)  # ✅ pass ID explicitly
+#         )
+#         swot_data["submission_id"] = str(swot_data["submission_id"])  # ✅ convert UUID to string
+
+#         # Step 3: Save SWOT data inside submission
+#         new_submission.swot_analysis = swot_data
+#         new_submission.processing_status = "completed"
+#         db.commit()
+#         db.refresh(new_submission)
+#         logger.info(f"Final SWOT data before returning: {json.dumps(swot_data, indent=2)}")
+
+#         # Step 4: Return SWOT + submission_id
+#         return SWOTAnalysis(
+#             strengths=swot_data.get("strengths", []),
+#             weaknesses=swot_data.get("weaknesses", []),
+#             opportunities=swot_data.get("opportunities", []),
+#             threats=swot_data.get("threats", []),
+#             suggestions=swot_data.get("suggestions", []),
+#             submission_id=str(new_submission.id)
+#         )
+
+#     except Exception as e:
+#         logger.error(f"Error analyzing submission: {str(e)}")
+#         db.rollback()
+#         raise HTTPException(status_code=500, detail=f"Failed to analyze submission: {str(e)}")
+
 @router.post("/analyze", response_model=SWOTAnalysis)
 async def analyze_submission(request: SWOTRequest, db: Session = Depends(get_db)):
     """
     Perform SWOT analysis on a student's submission using LLM.
-    Creates a submission first, then runs SWOT and links it.
+    Handles both manual text input and file uploads with extracted text.
     """
     try:
-        # Step 1: Create submission FIRST
-        new_submission = DBStudentSubmission(
-            student_id=request.student_id,
-            assignment_id=request.assignment_id,
-            course_id=db.query(DBGeneratedAssignment.course_id)
-                        .filter(DBGeneratedAssignment.id == request.assignment_id)
-                        .scalar(),
-            content=request.content,
-            evaluation_status="draft",
-            processing_status="processing"
-        )
-        db.add(new_submission)
-        db.commit()
-        db.refresh(new_submission)
-
-        # Step 2: Run LLM SWOT with submission_id
+        submission = None
+        submission_text = ""
+        
+        # CASE 1: If we have existing submission_id (from file upload), use it
+        if hasattr(request, 'submission_id') and request.submission_id:
+            submission = db.query(DBStudentSubmission).filter(
+                DBStudentSubmission.id == UUID(request.submission_id),
+                DBStudentSubmission.student_id == request.student_id
+            ).first()
+            
+            if submission:
+                # Get text from extracted_text (file upload) or content (manual)
+                submission_text = self._get_submission_text(submission)
+        
+        # CASE 2: No existing submission - create new one
+        if not submission:
+            # Get text from request (manual input)
+            submission_text = request.content
+            
+            # Create new submission
+            submission = DBStudentSubmission(
+                student_id=request.student_id,
+                assignment_id=request.assignment_id,
+                course_id=db.query(DBGeneratedAssignment.course_id)
+                            .filter(DBGeneratedAssignment.id == request.assignment_id)
+                            .scalar(),
+                content=request.content,  # Manual text input
+                extracted_text=request.content,  # Also store in extracted_text for consistency
+                evaluation_status="draft",
+                processing_status="processing"
+            )
+            db.add(submission)
+            db.commit()
+            db.refresh(submission)
+        
+        # Validate we have text to analyze
+        if not submission_text.strip():
+            raise HTTPException(
+                status_code=400, 
+                detail="No text content available for analysis. Please ensure your file was processed successfully or provide text input."
+            )
+        
+        # Step 2: Run LLM SWOT analysis
         swot_data = await llm_service.analyze_submission(
             request=request,
             db=db,
-            submission_id=str(new_submission.id)  # ✅ pass ID explicitly
+            submission_id=str(submission.id)
         )
-        swot_data["submission_id"] = str(swot_data["submission_id"])  # ✅ convert UUID to string
-
-        # Step 3: Save SWOT data inside submission
-        new_submission.swot_analysis = swot_data
-        new_submission.processing_status = "completed"
+        swot_data["submission_id"] = str(swot_data["submission_id"])
+        
+        # Step 3: Save SWOT data to submission
+        submission.swot_analysis = swot_data
+        submission.processing_status = "completed"
+        
+        # If this was a file upload submission, ensure content field is populated
+        if not submission.content and submission.extracted_text:
+            submission.content = submission.extracted_text
+        
         db.commit()
-        db.refresh(new_submission)
-        logger.info(f"Final SWOT data before returning: {json.dumps(swot_data, indent=2)}")
-
-        # Step 4: Return SWOT + submission_id
+        db.refresh(submission)
+        
+        logger.info(f"SWOT analysis completed for submission {submission.id}")
+        
         return SWOTAnalysis(
             strengths=swot_data.get("strengths", []),
             weaknesses=swot_data.get("weaknesses", []),
             opportunities=swot_data.get("opportunities", []),
             threats=swot_data.get("threats", []),
             suggestions=swot_data.get("suggestions", []),
-            submission_id=str(new_submission.id)
+            submission_id=str(submission.id)
         )
-
+        
     except Exception as e:
         logger.error(f"Error analyzing submission: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to analyze submission: {str(e)}")
+
+def _get_submission_text(self, submission: DBStudentSubmission) -> str:
+    """
+    Extract text from submission, preferring extracted_text from file uploads
+    """
+    # Priority 1: extracted_text (from file processing)
+    if submission.extracted_text and submission.extracted_text.strip():
+        return submission.extracted_text
+    
+    # Priority 2: content field (manual input)
+    if submission.content and submission.content.strip():
+        return submission.content
+    
+    # Priority 3: If no text but has file, try to re-process
+    if submission.file_path and not submission.extracted_text:
+        logger.info(f"Submission {submission.id} has file but no extracted text, attempting re-processing")
+        # You could add re-processing logic here if needed
+        return ""
+    
+    return ""
 
 
 @router.post("/submit-to-faculty")
@@ -300,7 +405,7 @@ async def save_assignment(
         db.commit()
         db.refresh(new_assignment)
         
-        # Mark the question set as saved
+        # CRITICAL: Mark the question set as saved by setting assignment_id
         question_set.assignment_id = new_assignment.id
         db.commit()
         
@@ -318,8 +423,7 @@ async def save_assignment(
         db.rollback()
         logger.error(f"Error saving student assignment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to save assignment: {str(e)}")
-
-
+    
 class ContextOptionsResponse(BaseModel):
     domains: List[str]
     service_categories: List[str]
@@ -668,4 +772,48 @@ def select_few_shot_examples(domains: List[str], topics: List[str]) -> List[Dict
     return selected[:3]
 
 
+@router.get("/questions/approved-not-saved", response_model=List[QuestionSetResponse])
+async def get_approved_not_saved_assignments(
+    student_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get all approved question sets that haven't been saved as assignments yet"""
+    try:
+        # Get all approved question sets for the student
+        approved_question_sets = db.query(DBStudentQuestionSet).filter(
+            DBStudentQuestionSet.student_id == student_id,
+            DBStudentQuestionSet.approval_status == 'approved',
+            DBStudentQuestionSet.assignment_id.is_(None)
+        ).order_by(DBStudentQuestionSet.created_at.desc()).all()
 
+        # Filter out question sets that have been saved
+        # Check if assignment_id exists and is not null
+        unsaved_question_sets = []
+        
+        for qs in approved_question_sets:
+            # Check if this question set has an assignment_id (meaning it's been saved)
+            if not hasattr(qs, 'assignment_id') or qs.assignment_id is None:
+                unsaved_question_sets.append(qs)
+
+        return [
+            QuestionSetResponse(
+                id=str(qs.id),
+                student_id=qs.student_id,
+                course_id=str(qs.course_id) if qs.course_id else None,
+                domain=qs.domain,
+                service_category=qs.service_category,
+                department=qs.department,
+                generated_questions=qs.generated_questions,
+                selected_question=qs.selected_question,
+                approval_status=qs.approval_status,
+                faculty_remarks=qs.faculty_remarks,
+                created_at=qs.created_at
+            ) for qs in unsaved_question_sets
+        ]
+
+    except Exception as e:
+        logger.error(f"Error fetching approved not saved assignments: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch approved assignments: {str(e)}"
+        )

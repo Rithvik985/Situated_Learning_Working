@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown'; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faChartLine, faCheckCircle, faSync, 
@@ -94,29 +95,41 @@ const StudentEvaluation = () => {
     setError(null);
     showNotification('📊 Analyzing your submission...', 'info', 0);
     try {
+      // Prepare payload based on whether we have file upload or manual text
+      const payload = submissionId ? {
+        student_id: studentId,
+        assignment_id: selectedAssignment.id,
+        submission_id: submissionId,  // Use existing submission from file upload
+        content: submission || ''      // Include manual text if any, but extracted_text will be used
+      } : {
+        student_id: studentId,
+        assignment_id: selectedAssignment.id,
+        content: submission            // Manual text input
+      };
+
       const res = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT_ANALYZE), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: studentId,
-          assignment_id: selectedAssignment.id,
-          content: submission
-        })
+        body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Failed to analyze submission');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || 'Failed to analyze submission');
+      }
       
       const data = await res.json();
       console.log("SWOT analysis response:", data);
 
       setAnalysis(data);
-      if (data.submission_id) {
+      
+      // Update submissionId if this created a new one
+      if (data.submission_id && !submissionId) {
         setSubmissionId(data.submission_id);
-        console.log("Stored submission ID:", data.submission_id);
-      } else {
-        console.warn("⚠️ No submission_id returned in analysis response");
       }
+      
       showNotification('✅ Analysis completed successfully!', 'success');
+      
       // Refresh submissions list
       const submissionsRes = await fetch(getApiUrl(SERVERS.STUDENT, ENDPOINTS.STUDENT_MY_SUBMISSIONS) + `/${studentId}`);
       if (submissionsRes.ok) {
@@ -230,7 +243,14 @@ const StudentEvaluation = () => {
           {selectedAssignment && (
             <div className="card" style={{marginBottom: '1rem' }}>
               <h4>{selectedAssignment.title}</h4>
-              <p>{selectedAssignment.description}</p>
+                          <div style={{
+                            padding: '1.5rem',
+                            borderRadius: '6px',
+                            marginBottom: '1rem'
+                          }}>
+                            <ReactMarkdown>{selectedAssignment.description}</ReactMarkdown>
+                          </div>
+              {/* <p>{selectedAssignment.description}</p> */}
             </div>
           )}
         </div>
@@ -380,7 +400,13 @@ const StudentEvaluation = () => {
                 <div>
                   <strong>Score:</strong> {Object.values(sub.faculty_evaluation.rubric_scores).reduce((a, b) => a + b, 0)}
                   <br />
-                  <strong>Comments:</strong> {sub.faculty_evaluation.comments}
+                  <strong>Comments:</strong>                           <div style={{
+                            padding: '1.5rem',
+                            borderRadius: '6px',
+                            marginBottom: '1rem'
+                          }}>
+                            <ReactMarkdown>{sub.faculty_evaluation.comments}</ReactMarkdown>
+                          </div>
                 </div>
               </div>
             )}

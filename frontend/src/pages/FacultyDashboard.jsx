@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faFilter, faCheckCircle, faClock, faFileAlt } from '@fortawesome/free-solid-svg-icons'
@@ -12,19 +12,6 @@ const FacultyDashboard = () => {
   const [evaluationFilter, setEvaluationFilter] = useState('all')
   const [courseFilter, setCourseFilter] = useState('all')
   const navigate = useNavigate()
-
-  // const load = async () => {
-  //   setLoading(true)
-  //   try {
-  //     const res = await fetch(getApiUrl(SERVERS.FACULTY, ENDPOINTS.FACULTY_APPROVE_QUESTION))
-  //     const data = await res.json()
-  //     setStudents(data)
-  //   } catch (e) {
-  //     console.error(e)
-  //   } finally {
-  //     setLoading(false)
-  //   }
-  // }
 
   const load = async () => {
     setLoading(true)
@@ -97,7 +84,7 @@ const FacultyDashboard = () => {
     })
   }
 
-   // ✅ Apply all filters
+  // ✅ Apply all filters
   const filteredStudents = students.filter(s => {
     const approvalMatch = 
       approvalFilter === 'all' || 
@@ -119,33 +106,21 @@ const FacultyDashboard = () => {
 
   // Get unique course names for filter dropdown
   const uniqueCourseNames = [...new Set(students.map(s => s.course_name).filter(Boolean))]
-  // ✅ Count stats for clarity
-  const totalCount = students.length
-  const pendingApprovalCount = students.filter(s => s.approval_status !== 'approved').length
-  const approvedCount = students.filter(s => s.approval_status === 'approved').length
-  
-  const pendingEvaluationCount = students.filter(s => !s.evaluation_status || s.evaluation_status === 'pending_faculty').length
-  const evaluatedCount = students.filter(s => s.evaluation_status === 'evaluated').length
-  const finalizedCount = students.filter(s => s.evaluation_status === 'finalized').length
 
-  // // ✅ Get grade color based on score
-  // const getGradeColor = (score, maxScore = 72) => {
-  //   const percentage = (score / maxScore) * 100
-  //   if (percentage >= 80) return '#28a745' // Green
-  //   if (percentage >= 60) return '#ffc107' // Yellow
-  //   if (percentage >= 40) return '#fd7e14' // Orange
-  //   return '#dc3545' // Red
-  // }
-
-  // // ✅ Get grade letter based on score
-  // const getGradeLetter = (score, maxScore = 72) => {
-  //   const percentage = (score / maxScore) * 100
-  //   if (percentage >= 80) return 'A'
-  //   if (percentage >= 70) return 'B'
-  //   if (percentage >= 60) return 'C'
-  //   if (percentage >= 50) return 'D'
-  //   return 'F'
-  // }
+  // ✅ DYNAMIC COUNTS BASED ON CURRENT FILTERS
+  const dynamicCounts = useMemo(() => {
+    // Count from the CURRENTLY FILTERED students
+    const filtered = filteredStudents;
+    
+    return {
+      totalCount: filtered.length,
+      pendingApprovalCount: filtered.filter(s => s.approval_status !== 'approved').length,
+      approvedCount: filtered.filter(s => s.approval_status === 'approved').length,
+      pendingEvaluationCount: filtered.filter(s => !s.evaluation_status || s.evaluation_status === 'pending_faculty').length,
+      evaluatedCount: filtered.filter(s => s.evaluation_status === 'evaluated').length,
+      finalizedCount: filtered.filter(s => s.evaluation_status === 'finalized').length
+    }
+  }, [filteredStudents]) // Recalculate when filteredStudents changes
 
   // ✅ Format evaluation status display
   const getEvaluationDisplay = (student) => {
@@ -172,7 +147,6 @@ const FacultyDashboard = () => {
             {student.evaluation_score && (
               <div style={{ 
                 fontSize: '0.85em', 
-                // color: getGradeColor(student.evaluation_score),
                 fontWeight: '600'
               }}>
                 {student.evaluation_score}/72
@@ -192,7 +166,6 @@ const FacultyDashboard = () => {
               <div>
                 <div style={{ 
                   fontSize: '0.85em', 
-                  // color: getGradeColor(student.evaluation_score),
                   fontWeight: '600',
                   marginBottom: '2px'
                 }}>
@@ -200,14 +173,11 @@ const FacultyDashboard = () => {
                 </div>
                 <div style={{ 
                   fontSize: '0.75em', 
-                  // color: getGradeColor(student.evaluation_score),
                   fontWeight: '600',
-                  // backgroundColor: `${getGradeColor(student.evaluation_score)}15`,
                   padding: '1px 6px',
                   borderRadius: '12px',
                   display: 'inline-block'
                 }}>
-                  {/* {getGradeLetter(student.evaluation_score)} */}
                 </div>
               </div>
             )}
@@ -225,6 +195,7 @@ const FacultyDashboard = () => {
       <p style={{ textAlign: 'center', color: 'gray', marginBottom: '2rem' }}>
         View student submissions and manage approvals.
       </p>
+      
       {/* ✅ Filters Section */}
       <div style={{ 
         display: 'flex', 
@@ -301,7 +272,8 @@ const FacultyDashboard = () => {
            evaluationFilter === 'evaluated' ? 'Evaluated Only' : 'Finalized Only'}
         </button>
       </div>
-      {/* ✅ Statistics Overview */}
+
+      {/* ✅ DYNAMIC Statistics Overview - Now updates with filters */}
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
@@ -315,7 +287,9 @@ const FacultyDashboard = () => {
           textAlign: 'center',
           border: '1px solid #dee2e6'
         }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#343a40' }}>{totalCount}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#343a40' }}>
+            {dynamicCounts.totalCount}
+          </div>
           <div style={{ color: '#6c757d' }}>Total Students</div>
         </div>
         <div style={{ 
@@ -325,7 +299,9 @@ const FacultyDashboard = () => {
           textAlign: 'center',
           border: '1px solid #ffeaa7'
         }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#856404' }}>{pendingApprovalCount}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#856404' }}>
+            {dynamicCounts.pendingApprovalCount}
+          </div>
           <div style={{ color: '#856404' }}>Pending Approval</div>
         </div>
         <div style={{ 
@@ -335,7 +311,9 @@ const FacultyDashboard = () => {
           textAlign: 'center',
           border: '1px solid #bee5eb'
         }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0c5460' }}>{pendingEvaluationCount}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0c5460' }}>
+            {dynamicCounts.pendingEvaluationCount}
+          </div>
           <div style={{ color: '#0c5460' }}>Pending Evaluation</div>
         </div>
         <div style={{ 
@@ -345,7 +323,9 @@ const FacultyDashboard = () => {
           textAlign: 'center',
           border: '1px solid #c3e6cb'
         }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#155724' }}>{finalizedCount}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#155724' }}>
+            {dynamicCounts.finalizedCount}
+          </div>
           <div style={{ color: '#155724' }}>Finalized</div>
         </div>
       </div>
@@ -473,7 +453,7 @@ const FacultyDashboard = () => {
         </div>
       )}
 
-      {/* ✅ Filter Status Display - Updated */}
+      {/* ✅ Filter Status Display - Updated with dynamic counts */}
       <div style={{ 
         marginTop: '1rem', 
         padding: '0.5rem', 
@@ -499,7 +479,11 @@ const FacultyDashboard = () => {
            evaluationFilter === 'evaluated' ? 'Evaluated Only' : 'Finalized Only'}
         </strong>
         {' • '}
-        {filteredStudents.length} of {totalCount} students
+        {filteredStudents.length} of {students.length} students
+        {' • '}
+        <span style={{ fontWeight: '600' }}>
+          {dynamicCounts.pendingApprovalCount} pending approval, {dynamicCounts.pendingEvaluationCount} pending evaluation
+        </span>
       </div>
     </div>
   )
