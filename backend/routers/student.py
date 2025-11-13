@@ -159,7 +159,7 @@ async def analyze_submission(request: SWOTRequest, db: Session = Depends(get_db)
             
             if submission:
                 # Get text from extracted_text (file upload) or content (manual)
-                submission_text = self._get_submission_text(submission)
+                submission_text = _get_submission_text(submission)
         
         # CASE 2: No existing submission - create new one
         if not submission:
@@ -224,7 +224,7 @@ async def analyze_submission(request: SWOTRequest, db: Session = Depends(get_db)
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to analyze submission: {str(e)}")
 
-def _get_submission_text(self, submission: DBStudentSubmission) -> str:
+def _get_submission_text(submission: DBStudentSubmission) -> str:
     """
     Extract text from submission, preferring extracted_text from file uploads
     """
@@ -680,7 +680,7 @@ async def select_question(question_set_id: str, req: QuestionSelectionRequest, d
             id=str(row.id),
             student_id=row.student_id,
             course_id=str(row.course_id) if row.course_id else None,
-            course_name=row.course_name,
+            # course_name=row.course_name,
             domain=row.domain,
             service_category=row.service_category,
             department=row.department,

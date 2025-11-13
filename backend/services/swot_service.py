@@ -1,7 +1,7 @@
 import json
 import httpx
 import logging
-from uuid import uuid4
+from uuid import uuid4, UUID
 from typing import Dict, Any
 from config.settings import settings
 from utils.llm_config import llm_config
@@ -25,7 +25,7 @@ class LLMAnalysisService:
         self.headers = llm_config.get_headers()
 
     async def analyze_submission(self, request, db: Session, submission_id: str) -> Dict[str, Any]:
-        """Perform SWOT analysis using LLM and store submission + SWOT results in DB."""
+        """Perform SWOT analysis using LLM and store SWOT results in DB."""
         # Fetch assignment
         assignment = db.query(DBGeneratedAssignment).filter(
             DBGeneratedAssignment.id == request.assignment_id
@@ -43,19 +43,14 @@ class LLMAnalysisService:
             response_text = await self._call_llm(system_prompt, user_prompt)
             swot_analysis = self._parse_swot_response(response_text)
 
-            # ✅ Create submission entry
-            submission_data = SubmissionCreate(
-                student_id=request.student_id,
-                assignment_id=request.assignment_id,
-                content=request.content,
-                evaulation_status="draft",
-            )
-            submission = self._create_submission(db, submission_data)
-
-            # ✅ Store SWOT analysis
+            # ✅ Store SWOT analysis using the provided submission_id
+            # The submission was already created in the router, so we just link the SWOT result to it
+            # Convert submission_id string to UUID if needed
+            submission_uuid = UUID(submission_id) if isinstance(submission_id, str) else submission_id
+            
             swot_result = DBStudentSWOT(
-                id=str(uuid4()),
-                submission_id=str(submission.id),
+                id=uuid4(),
+                submission_id=submission_uuid,  # Use the submission_id passed from router
                 strengths=swot_analysis.get("strengths", []),
                 weaknesses=swot_analysis.get("weaknesses", []),
                 opportunities=swot_analysis.get("opportunities", []),
@@ -73,7 +68,7 @@ class LLMAnalysisService:
                 "opportunities": swot_analysis.get("opportunities", []),
                 "threats": swot_analysis.get("threats", []),
                 "suggestions": swot_analysis.get("suggestions", []),
-                "submission_id": str(submission.id)  # This goes INSIDE the main object
+                "submission_id": submission_id  # Return the submission_id that was passed in
             }
 
 
