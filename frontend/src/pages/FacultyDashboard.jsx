@@ -61,8 +61,28 @@ const FacultyDashboard = () => {
     }
   }
 
-  const handleReviewClick = (studentId) => {
-    navigate(`/faculty/review/${studentId}`)
+  const handleReviewClick = async (questionSetId) => {
+    // Fetch the question set details using the new endpoint
+    // This ensures we get the correct assignment for this specific question set
+    try {
+      const res = await fetch(`/api/faculty/questions/${questionSetId}`)
+      if (res.ok) {
+        const questionSetDetail = await res.json()
+        // Navigate to review page with question set ID
+        // The review page can use this to fetch the correct assignment details
+        navigate(`/faculty/review/${questionSetId}`, { 
+          state: { questionSetDetail } 
+        })
+      } else {
+        console.error('Failed to fetch question set details')
+        // Fallback: navigate with question set ID anyway
+        navigate(`/faculty/review/${questionSetId}`)
+      }
+    } catch (e) {
+      console.error('Error fetching question set details:', e)
+      // Fallback: navigate with question set ID anyway
+      navigate(`/faculty/review/${questionSetId}`)
+    }
   }
 
   // ✅ Cycle through approval filter states
@@ -70,6 +90,7 @@ const FacultyDashboard = () => {
     setApprovalFilter(prev => {
       if (prev === 'all') return 'pending'
       if (prev === 'pending') return 'approved'
+      if (prev === 'approved') return 'rejected'
       return 'all'
     })
   }
@@ -88,8 +109,9 @@ const FacultyDashboard = () => {
   const filteredStudents = students.filter(s => {
     const approvalMatch = 
       approvalFilter === 'all' || 
-      (approvalFilter === 'pending' && s.approval_status !== 'approved') ||
-      (approvalFilter === 'approved' && s.approval_status === 'approved')
+      (approvalFilter === 'pending' && (s.approval_status === 'pending' || !s.approval_status)) ||
+      (approvalFilter === 'approved' && s.approval_status === 'approved') ||
+      (approvalFilter === 'rejected' && s.approval_status === 'rejected')
     
     const evaluationMatch = 
       evaluationFilter === 'all' ||
@@ -114,8 +136,9 @@ const FacultyDashboard = () => {
     
     return {
       totalCount: filtered.length,
-      pendingApprovalCount: filtered.filter(s => s.approval_status !== 'approved').length,
+      pendingApprovalCount: filtered.filter(s => s.approval_status === 'pending' || !s.approval_status).length,
       approvedCount: filtered.filter(s => s.approval_status === 'approved').length,
+      rejectedCount: filtered.filter(s => s.approval_status === 'rejected').length,
       pendingEvaluationCount: filtered.filter(s => !s.evaluation_status || s.evaluation_status === 'pending_faculty').length,
       evaluatedCount: filtered.filter(s => s.evaluation_status === 'evaluated').length,
       finalizedCount: filtered.filter(s => s.evaluation_status === 'finalized').length
@@ -232,10 +255,12 @@ const FacultyDashboard = () => {
             padding: '0.5rem 1rem',
             backgroundColor: 
               approvalFilter === 'pending' ? '#fff3cd' :
-              approvalFilter === 'approved' ? '#d4edda' : '#f8f9fa',
+              approvalFilter === 'approved' ? '#d4edda' :
+              approvalFilter === 'rejected' ? '#f8d7da' : '#f8f9fa',
             color: 
               approvalFilter === 'pending' ? '#856404' :
-              approvalFilter === 'approved' ? '#155724' : '#343a40',
+              approvalFilter === 'approved' ? '#155724' :
+              approvalFilter === 'rejected' ? '#721c24' : '#343a40',
             border: '1px solid #dee2e6',
             borderRadius: '4px',
             cursor: 'pointer',
@@ -244,7 +269,8 @@ const FacultyDashboard = () => {
         >
           <FontAwesomeIcon icon={faFilter} style={{ marginRight: '5px' }} />
           {approvalFilter === 'all' ? 'All Approvals' : 
-           approvalFilter === 'pending' ? 'Pending Approvals' : 'Approved Only'}
+           approvalFilter === 'pending' ? 'Pending Approvals' : 
+           approvalFilter === 'approved' ? 'Approved Only' : 'Rejected Only'}
         </button>
 
         {/* Evaluation Filter Button */}
@@ -290,7 +316,7 @@ const FacultyDashboard = () => {
           <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#343a40' }}>
             {dynamicCounts.totalCount}
           </div>
-          <div style={{ color: '#6c757d' }}>Total Students</div>
+          <div style={{ color: '#6c757d' }}>Total Requests</div>
         </div>
         <div style={{ 
           padding: '1rem', 
@@ -346,7 +372,8 @@ const FacultyDashboard = () => {
                     title={
                       approvalFilter === 'all' ? 'Showing All' :
                       approvalFilter === 'pending' ? 'Showing Pending Only' :
-                      'Showing Approved Only'
+                      approvalFilter === 'approved' ? 'Showing Approved Only' :
+                      'Showing Rejected Only'
                     }
                     style={{
                       marginLeft: '10px',
@@ -355,7 +382,8 @@ const FacultyDashboard = () => {
                       cursor: 'pointer',
                       color:
                         approvalFilter === 'pending' ? '#f1c40f' :
-                        approvalFilter === 'approved' ? '#2ecc71' : 'white',
+                        approvalFilter === 'approved' ? '#2ecc71' :
+                        approvalFilter === 'rejected' ? '#e74c3c' : 'white',
                       transition: 'color 0.2s ease',
                       fontSize: '1rem'
                     }}
@@ -420,9 +448,25 @@ const FacultyDashboard = () => {
                         >
                           Approved
                         </button>
+                      ) : s.approval_status === 'rejected' ? (
+                        <button
+                          style={{
+                            backgroundColor: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            fontWeight: '600',
+                            cursor: 'default',
+                            display: 'block',
+                            margin: '0 auto'
+                          }}
+                        >
+                          Rejected
+                        </button>
                       ) : (
                         <button
-                          onClick={() => handleReviewClick(s.student_id)}
+                          onClick={() => handleReviewClick(s.id)}
                           style={{
                             backgroundColor: 'rgb(52, 72, 94)',
                             color: 'white',
@@ -470,7 +514,8 @@ const FacultyDashboard = () => {
         {' • '}
         <strong>
           {approvalFilter === 'all' ? 'All Approvals' : 
-           approvalFilter === 'pending' ? 'Pending Approvals' : 'Approved Only'}
+           approvalFilter === 'pending' ? 'Pending Approvals' : 
+           approvalFilter === 'approved' ? 'Approved Only' : 'Rejected Only'}
         </strong>
         {' • '}
         <strong>

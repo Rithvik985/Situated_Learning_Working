@@ -364,24 +364,60 @@ const StudentEvaluation = () => {
       )}
 
       {/* Submission History */}
-      <div className="card" style={{ marginTop: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3>Submission History</h3>
+      <div className="card" style={{ 
+        marginTop: '2rem',
+        backgroundColor: '#34495e',
+        color: '#ecf0f1',
+        border: '1px solid #2c3e50'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '1rem' 
+        }}>
+          <h3 style={{ color: '#ecf0f1' }}>Submission History</h3>
           <button 
             className="btn btn-secondary"
             onClick={() => setShowHistory(!showHistory)}
+            style={{
+              backgroundColor: '#7f8c8d',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
           >
             {showHistory ? 'Hide History' : 'Show History'}
           </button>
         </div>
 
         {showHistory && submissions.map((sub) => (
-          <div key={sub.id} className="card" style={{ marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div key={sub.id} className="card" style={{ 
+            marginBottom: '1rem',
+            backgroundColor: '#2c3e50',
+            color: '#ecf0f1',
+            border: '1px solid #34495e',
+            padding: '1rem',
+            borderRadius: '6px'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              color: '#ecf0f1'
+            }}>
               <div>
-                <strong>Submitted:</strong> {new Date(sub.submission_date).toLocaleDateString()}
+                <strong style={{ color: '#f39c12' }}>Submitted:</strong> 
+                <span style={{ marginLeft: '0.5rem', color: '#ecf0f1' }}>
+                  {new Date(sub.submission_date).toLocaleDateString()}
+                </span>
                 <br />
-                <strong>Status:</strong> {sub.status}
+                <strong style={{ color: '#f39c12' }}>Status:</strong> 
+                <span style={{ marginLeft: '0.5rem', color: '#ecf0f1' }}>
+                  {sub.status}
+                </span>
               </div>
               {sub.status === 'draft' && (
                 <button 
@@ -395,29 +431,104 @@ const StudentEvaluation = () => {
             </div>
 
             {sub.faculty_evaluation && (
-              <div className="card" style={{ marginTop: '1rem' }}>
-                <h4>Faculty Evaluation</h4>
-                <div>
-                  <strong>Score:</strong> {Object.values(sub.faculty_evaluation.rubric_scores).reduce((a, b) => a + b, 0)}
-                  <br />
-                  <strong>Comments:</strong>                           <div style={{
-                            padding: '1.5rem',
-                            borderRadius: '6px',
-                            marginBottom: '1rem'
-                          }}>
-                            <ReactMarkdown>{sub.faculty_evaluation.comments}</ReactMarkdown>
+              <div className="card" style={{ 
+                marginTop: '1rem',
+                backgroundColor: '#34495e',
+                color: '#ecf0f1',
+                border: '1px solid #2c3e50'
+              }}>
+                <h4 style={{ color: '#ecf0f1', marginBottom: '1rem' }}>Faculty Evaluation</h4>
+                <div style={{ color: '#ecf0f1' }}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ color: '#f39c12' }}>Score:</strong> 
+                    <span style={{ color: '#ecf0f1', marginLeft: '0.5rem' }}>
+                      {
+                        Array.isArray(sub.faculty_evaluation.rubric_scores)
+                          ? sub.faculty_evaluation.rubric_scores.reduce((sum, item) => sum + (item.score || 0), 0)
+                          : sub.evaluation_score || 0
+                      } / {
+                        Array.isArray(sub.faculty_evaluation.rubric_scores)
+                          ? sub.faculty_evaluation.rubric_scores.reduce((sum, item) => sum + (item.max_score || 0), 0)
+                          : 72
+                      }
+                    </span>
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ color: '#f39c12' }}>Comments:</strong>
+                    <div style={{
+                      padding: '1.5rem',
+                      borderRadius: '6px',
+                      marginTop: '0.5rem',
+                      backgroundColor: '#2c3e50',
+                      color: '#ecf0f1',
+                      border: '1px solid #34495e'
+                    }}>
+                      <ReactMarkdown>{sub.faculty_evaluation.comments}</ReactMarkdown>
+                    </div>
+                  </div>
+                  
+                  {/* Display detailed rubric scores */}
+                  {Array.isArray(sub.faculty_evaluation.rubric_scores) && sub.faculty_evaluation.rubric_scores.length > 0 && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <strong style={{ color: '#f39c12' }}>Detailed Scores:</strong>
+                      {sub.faculty_evaluation.rubric_scores.map((category, idx) => (
+                        <div key={idx} style={{ 
+                          marginTop: '0.5rem', 
+                          padding: '0.75rem',
+                          background: '#2c3e50',
+                          borderRadius: '4px',
+                          border: '1px solid #34495e',
+                          color: '#ecf0f1'
+                        }}>
+                          <div style={{ color: '#ecf0f1' }}>
+                            <strong style={{ color: '#f39c12' }}>{category.category}:</strong> 
+                            <span style={{ marginLeft: '0.5rem' }}>
+                              {category.score} / {category.max_score} ({category.percentage}%)
+                            </span>
                           </div>
+                          {category.feedback && (
+                            <div style={{ 
+                              marginTop: '0.5rem', 
+                              fontSize: '0.9em', 
+                              color: '#bdc3c7',
+                              padding: '0.5rem',
+                              backgroundColor: '#1a252f',
+                              borderRadius: '4px'
+                            }}>
+                              <ReactMarkdown>{category.feedback}</ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             {sub.swot_analyses && sub.swot_analyses.length > 0 && (
               <div style={{ marginTop: '1rem' }}>
-                <h4>SWOT Analyses ({sub.swot_analyses.length})</h4>
+                <h4 style={{ color: '#ecf0f1' }}>SWOT Analyses ({sub.swot_analyses.length})</h4>
                 {sub.swot_analyses.map((swot, index) => (
-                  <div key={index} className="card" style={{ marginTop: '0.5rem' }}>
-                    <strong>Analysis {index + 1}</strong> - {new Date(swot.analysis_date).toLocaleDateString()}
-                    <div className="grid" style={{ gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <div key={index} className="card" style={{ 
+                    marginTop: '0.5rem',
+                    backgroundColor: '#34495e',
+                    color: '#ecf0f1',
+                    border: '1px solid #2c3e50',
+                    padding: '1rem',
+                    borderRadius: '6px'
+                  }}>
+                    <strong style={{ color: '#f39c12' }}>
+                      Analysis {index + 1}
+                    </strong> 
+                    <span style={{ color: '#bdc3c7', marginLeft: '0.5rem' }}>
+                      - {new Date(swot.analysis_date).toLocaleDateString()}
+                    </span>
+                    <div className="grid" style={{ 
+                      gap: '0.5rem', 
+                      marginTop: '0.5rem',
+                      color: '#ecf0f1'
+                    }}>
                       <div>Strengths: {swot.strengths.length}</div>
                       <div>Weaknesses: {swot.weaknesses.length}</div>
                       <div>Opportunities: {swot.opportunities.length}</div>

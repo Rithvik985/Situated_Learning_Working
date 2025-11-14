@@ -36,7 +36,7 @@ function App() {
             <Route path="/faculty/evaluation" element={<FacultyEvaluation />} />
             <Route path="/student-workflow" element={<StudentWorkflow />} />
             <Route path="/faculty/dashboard" element={<FacultyDashboard />} />
-            <Route path="/faculty/review/:studentId" element={<FacultyReviewPage />} />
+            <Route path="/faculty/review/:questionSetId" element={<FacultyReviewPage />} />
             <Route path="/upload-past-assignment" element={<UploadPastAssignment />} />
             <Route path="/dashboard" element={<Analytics />} />
             <Route path="/rubric-management" element={<RubricManagement />} />

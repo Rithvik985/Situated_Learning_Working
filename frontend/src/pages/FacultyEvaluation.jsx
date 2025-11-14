@@ -23,8 +23,24 @@ const FacultyEvaluation = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [aiDetectionResults, setAiDetectionResults] = useState(null);
-  const [rawEvalResponse, setRawEvalResponse] = useState(null);
-  const [showRawResponse, setShowRawResponse] = useState(false);
+  const [courseFilter, setCourseFilter] = useState('all');
+  const [courses, setCourses] = useState([]);
+
+  // ✅ Fetch courses for filter
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const res = await fetch(getApiUrl(SERVERS.FACULTY, "COURSES"));
+        if (res.ok) {
+          const data = await res.json();
+          setCourses(data);
+        }
+      } catch (e) {
+        console.error("Error loading courses:", e);
+      }
+    };
+    fetchCourses();
+  }, []);
 
   // ✅ Fetch pending submissions (basic info)
   useEffect(() => {
@@ -244,7 +260,6 @@ const FacultyEvaluation = () => {
 
       const data = await res.json();
       console.log('Auto-eval response:', data);
-      setRawEvalResponse(data);
 
       // Normalize response to internal shape used by this component
       const dimsSource = data.dimensions || data.criterion_feedback || [];
@@ -316,8 +331,36 @@ const FacultyEvaluation = () => {
         {/* ✅ Pending Submissions List */}
         <div className="card">
           <h3>Pending Evaluations</h3>
+          
+          {/* Course Filter */}
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>
+              Filter by Course:
+            </label>
+            <select
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "0.5rem",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+                fontSize: "0.9rem"
+              }}
+            >
+              <option value="all">All Courses</option>
+              {[...new Set(submissions.map(s => s.course_name).filter(Boolean))].map((courseName) => (
+                <option key={courseName} value={courseName}>
+                  {courseName}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div style={{ maxHeight: "600px", overflowY: "auto" }}>
-            {submissions.map((submission) => (
+            {submissions
+              .filter(sub => courseFilter === 'all' || sub.course_name === courseFilter)
+              .map((submission) => (
               <div
                 key={submission.id}
                 className={`card clickable ${selectedSubmission?.id === submission.id ? "selected" : ""}`}
@@ -331,18 +374,25 @@ const FacultyEvaluation = () => {
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <FontAwesomeIcon icon={faUser} />
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <div>{submission.student_id}</div>
+                    {submission.course_name && (
+                      <div style={{ fontSize: "0.85em", color: "var(--text-secondary)", marginTop: "0.25rem" }}>
+                        {submission.course_name}
+                      </div>
+                    )}
                     <small style={{ color: "var(--text-secondary)" }}>
-                      {new Date(submission.created_at).toLocaleDateString()}
+                      {new Date(submission.submission_date || submission.created_at).toLocaleDateString()}
                     </small>
                   </div>
                 </div>
               </div>
             ))}
-            {submissions.length === 0 && (
+            {submissions.filter(sub => courseFilter === 'all' || sub.course_name === courseFilter).length === 0 && (
               <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "1rem" }}>
-                No pending evaluations
+                {courseFilter === 'all' 
+                  ? 'No pending evaluations' 
+                  : `No pending evaluations for ${courseFilter}`}
               </div>
             )}
           </div>
@@ -447,21 +497,25 @@ const FacultyEvaluation = () => {
                   <FontAwesomeIcon icon={faSearch} /> AI Content Detection Results
                 </h3>
                 <div className="alert" style={{
-                  backgroundColor: aiDetectionResults.is_likely_ai ? '#ffc107' : '#28a745',
+                  backgroundColor: (aiDetectionResults.ai_detection_results?.is_likely_ai || false) ? '#ffc107' : '#28a745',
                   color: '#000',
                   padding: '1rem',
                   borderRadius: '4px',
                   marginBottom: '1rem'
                 }}>
-                  <strong>Risk Level:</strong> {aiDetectionResults.risk_assessment.risk_level}
+                  <strong>Risk Level:</strong> {aiDetectionResults.risk_assessment?.risk_level || 'Unknown'}
                   <div>
-                    <strong>AI Probability:</strong> {(aiDetectionResults.ai_probability * 100).toFixed(1)}%
+                    <strong>AI Probability:</strong> {
+                      aiDetectionResults.ai_detection_results?.ai_probability !== undefined
+                        ? (aiDetectionResults.ai_detection_results.ai_probability * 100).toFixed(1)
+                        : 'N/A'
+                    }%
                   </div>
                 </div>
 
                 <h4>Recommendations:</h4>
                 <ul style={{ paddingLeft: '1.5rem' }}>
-                  {aiDetectionResults.recommendations.map((rec, idx) => (
+                  {(aiDetectionResults.recommendations || []).map((rec, idx) => (
                     <li key={idx}>{rec}</li>
                   ))}
                 </ul>
@@ -470,10 +524,10 @@ const FacultyEvaluation = () => {
                   <h4>Submission Statistics:</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
-                      <strong>Text Length:</strong> {aiDetectionResults.submission_stats.text_length}
+                      <strong>Text Length:</strong> {aiDetectionResults.submission_stats?.text_length || 'N/A'}
                     </div>
                     <div>
-                      <strong>Word Count:</strong> {aiDetectionResults.submission_stats.word_count}
+                      <strong>Word Count:</strong> {aiDetectionResults.submission_stats?.word_count || 'N/A'}
                     </div>
                   </div>
                 </div>
@@ -483,40 +537,17 @@ const FacultyEvaluation = () => {
             {/* ✅ Show results if evaluation completed */}
             {evaluationResult && (
               <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  <div>
-                    <h3>Evaluation Results</h3>
-                    <div style={{ padding: '1rem', borderRadius: '4px', marginBottom: '1rem' }}>
-                      <h4 style={{ margin: '0 0 0.5rem 0'}}>
-                        Overall Score: <strong>{evaluationResult.overall_score?.toFixed(2)}/72</strong>
-                      </h4>
-                      <p style={{ margin: 0}}>
-                        {evaluationResult.overall_feedback}
-                      </p>
-                    </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <h3>Evaluation Results</h3>
+                  <div style={{ padding: '1rem', borderRadius: '4px', marginBottom: '1rem' }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0'}}>
+                      Overall Score: <strong>{evaluationResult.overall_score?.toFixed(2)}/72</strong>
+                    </h4>
+                    <p style={{ margin: 0}}>
+                      {evaluationResult.overall_feedback}
+                    </p>
                   </div>
-                  <button 
-                    className="btn btn-sm" 
-                    onClick={() => setShowRawResponse(s => !s)}
-                    style={{ alignSelf: 'flex-start' }}
-                  >
-                    {showRawResponse ? 'Hide raw response' : 'Show raw response'}
-                  </button>
                 </div>
-                
-                {showRawResponse && rawEvalResponse && (
-                  <pre style={{ 
-                    maxHeight: 300, 
-                    overflow: 'auto', 
-                    background: '#111', 
-                    color: '#eee', 
-                    padding: '1rem', 
-                    borderRadius: 4,
-                    marginBottom: '1rem'
-                  }}>
-                    {JSON.stringify(rawEvalResponse, null, 2)}
-                  </pre>
-                )}
 
                 {/* Dimensions with editable criteria */}
                 <h4>Rubric Dimensions</h4>

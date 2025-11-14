@@ -44,16 +44,35 @@ async def get_pending_submissions(db: Session = Depends(get_db)):
             .all()
         )
 
-        result = [
-            {
+        result = []
+        for sub in submissions:
+            # Get assignment to fetch course information
+            assignment = None
+            course_name = None
+            if sub.assignment_id:
+                assignment = db.query(DBGeneratedAssignment).filter(
+                    DBGeneratedAssignment.id == sub.assignment_id
+                ).first()
+                
+                # Get course name - prefer from Course table if course_id exists
+                if assignment:
+                    if assignment.course_id:
+                        course = db.query(DBCourse).filter(DBCourse.id == assignment.course_id).first()
+                        if course:
+                            course_name = course.title
+                    # Fallback to assignment.course_name
+                    if not course_name:
+                        course_name = assignment.course_name
+            
+            result.append({
                 "id": str(sub.id),
                 "student_id": sub.student_id,
                 "assignment_id": str(sub.assignment_id),
                 "submission_date": sub.created_at.isoformat() if sub.created_at else None,
                 "evaluation_status": sub.evaluation_status,
-            }
-            for sub in submissions
-        ]
+                "course_name": course_name,
+                "created_at": sub.created_at.isoformat() if sub.created_at else None
+            })
 
         logger.info(f"Found {len(result)} pending submissions")
         return result
@@ -135,6 +154,18 @@ async def get_submission_details(
             DBGeneratedAssignment.id == submission.assignment_id
         ).first()
 
+        # Get course name - prefer from Course table if course_id exists, otherwise use assignment.course_name
+        course_name = None
+        if assignment:
+            if assignment.course_id:
+                # Fetch course from Course table to get the proper course name
+                course = db.query(DBCourse).filter(DBCourse.id == assignment.course_id).first()
+                if course:
+                    course_name = course.title
+            # Fallback to assignment.course_name if course_id doesn't exist or course not found
+            if not course_name:
+                course_name = assignment.course_name
+
         return SubmissionDetail(
             id=str(submission.id),
             student_id=submission.student_id,
@@ -144,7 +175,7 @@ async def get_submission_details(
             assignment_details={
                 "title": assignment.title if assignment else None,
                 "description": assignment.description if assignment else None,
-                "course_name": assignment.course_name if assignment else None
+                "course_name": course_name
             },
             current_evaluation={
                 "criteria_scores": current_eval.rubric_scores if current_eval else None,
@@ -295,6 +326,22 @@ class QuestionSetItem(BaseModel):
     department: Optional[str] = None
     selected_question: Optional[str] = None
     approval_status: str
+
+class QuestionSetDetail(BaseModel):
+    """Detailed question set information with assignment details"""
+    id: str
+    student_id: str
+    course_id: Optional[str] = None
+    course_name: Optional[str] = None
+    domain: str
+    service_category: Optional[str] = None
+    department: Optional[str] = None
+    selected_question: Optional[str] = None
+    approval_status: str
+    faculty_remarks: Optional[str] = None
+    assignment_id: Optional[str] = None
+    assignment_details: Optional[Dict[str, Any]] = None
+    created_at: Optional[str] = None
 
 class EvaluationScores(BaseModel):
     scores: Dict[str, float]
@@ -539,7 +586,7 @@ async def get_questions_by_student(student_id: str, db: Session = Depends(get_db
         ).order_by(DBStudentQuestionSet.created_at.desc()).all()
         
         if not rows:
-            raise HTTPException(status_code=404, detail="No question sets found for this student")
+            return []  # Return empty list instead of raising 404
         
         return [
             QuestionSetItem(
@@ -553,9 +600,63 @@ async def get_questions_by_student(student_id: str, db: Session = Depends(get_db
             )
             for r in rows
         ]
+    except Exception as e:
+        logger.error(f"Error fetching questions by student: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/questions/{question_set_id}", response_model=QuestionSetDetail)
+async def get_question_set_detail(question_set_id: str, db: Session = Depends(get_db)):
+    """Get detailed information for a specific question set including assignment details"""
+    try:
+        qs = db.query(DBStudentQuestionSet).filter(
+            DBStudentQuestionSet.id == uuid.UUID(question_set_id)
+        ).first()
+        
+        if not qs:
+            raise HTTPException(status_code=404, detail="Question set not found")
+        
+        # Get course name
+        course_name = None
+        if qs.course_id:
+            course = db.query(DBCourse).filter(DBCourse.id == qs.course_id).first()
+            course_name = course.title if course else None
+        
+        # Get assignment details using the assignment_id from this question set
+        assignment_details = None
+        if qs.assignment_id:
+            assignment = db.query(DBGeneratedAssignment).filter(
+                DBGeneratedAssignment.id == qs.assignment_id
+            ).first()
+            if assignment:
+                assignment_details = {
+                    "id": str(assignment.id),
+                    "title": assignment.title,
+                    "description": assignment.description,
+                    "course_name": assignment.course_name,
+                    "assignment_name": assignment.assignment_name,
+                    "domains": assignment.domains,
+                    "requirements": assignment.requirements
+                }
+        
+        return QuestionSetDetail(
+            id=str(qs.id),
+            student_id=qs.student_id,
+            course_id=str(qs.course_id) if qs.course_id else None,
+            course_name=course_name,
+            domain=qs.domain,
+            service_category=qs.service_category,
+            department=qs.department,
+            selected_question=qs.selected_question,
+            approval_status=qs.approval_status,
+            faculty_remarks=qs.faculty_remarks,
+            assignment_id=str(qs.assignment_id) if qs.assignment_id else None,
+            assignment_details=assignment_details,
+            created_at=qs.created_at.isoformat() if qs.created_at else None
+        )
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error fetching question set detail: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -653,6 +754,7 @@ async def auto_evaluate_submission(submission_id: str, request: AutoEvaluateRequ
     """
     Automatically evaluate a student's submission using LLM-based rubric analysis.
     Triggered when a faculty member clicks 'Evaluate'.
+    If an evaluation already exists, returns it. Otherwise, runs a new evaluation.
     """
     try:
         # Log incoming request
@@ -664,14 +766,62 @@ async def auto_evaluate_submission(submission_id: str, request: AutoEvaluateRequ
         if not submission:
             raise HTTPException(status_code=404, detail="Submission not found")
 
-        # Step 2: Ensure status is correct
-        if submission.evaluation_status != "pending_faculty":
+        # Step 2: Check if evaluation already exists
+        existing_eval = db.query(DBFacultyEvaluation).filter(
+            DBFacultyEvaluation.submission_id == submission_id
+        ).first()
+        
+        if existing_eval:
+            logger.info(f"✅ Found existing evaluation for submission {submission_id}, returning it")
+            # Convert existing evaluation to response format
+            rubric_scores = existing_eval.rubric_scores if isinstance(existing_eval.rubric_scores, list) else []
+            
+            dimensions = []
+            overall_score = 0
+            for rs in rubric_scores:
+                question_results = rs.get("question_results", [])
+                criteria_list = [
+                    {
+                        "name": qr.get("question", ""),
+                        "score": qr.get("score", 0),
+                        "feedback": qr.get("feedback", "")
+                    }
+                    for qr in question_results
+                ]
+                
+                dimensions.append({
+                    "name": rs.get("category", ""),
+                    "dimension_score": float(rs.get("score", 0)),
+                    "dimension_max_score": float(rs.get("max_score", 12)),
+                    "dimension_percentage": round(rs.get("percentage", 0), 2),
+                    "dimension_feedback": rs.get("feedback", ""),
+                    "criteria": criteria_list
+                })
+                overall_score += rs.get("score", 0)
+            
+            response_payload = {
+                "submission_id": submission_id,
+                "status": submission.evaluation_status or "evaluated",
+                "overall_score": overall_score,
+                "total_criteria": sum(len(dim.get("criteria", [])) for dim in dimensions),
+                "overall_feedback": existing_eval.comments or "",
+                "processing_time": None,
+                "llm_model": None,
+                "duration": None,
+                "dimensions": dimensions,
+                "evaluation_metadata": {}
+            }
+            
+            return response_payload
+
+        # Step 3: Ensure status is correct for new evaluation
+        if submission.evaluation_status not in ["pending_faculty", "evaluated"]:
             raise HTTPException(
                 status_code=400,
                 detail=str(f"Submission not ready for evaluation (current status: {submission.evaluation_status})")
             )
 
-        # Step 3: Fetch the linked assignment context
+        # Step 4: Fetch the linked assignment context
         assignment = db.query(DBGeneratedAssignment).filter(DBGeneratedAssignment.id == submission.assignment_id).first()
         if not assignment:
             raise HTTPException(status_code=404, detail="Linked assignment not found")
@@ -683,16 +833,16 @@ async def auto_evaluate_submission(submission_id: str, request: AutoEvaluateRequ
             f"Context: {assignment.industry_context or 'No industry context provided.'}"
         )
 
-        # Step 4: Use student's submission content
+        # Step 5: Use student's submission content
         submission_text = submission.content or "No content submitted."
 
-        # Step 5: Prepare rubric
+        # Step 6: Prepare rubric
         rubric = {"rubrics": [
             {"category": dim["name"], "questions": list(dim["criteria_output"].keys())}
             for dim in SITUATED_LEARNING_RUBRIC["dimensions"]
         ]}
 
-        # Step 6: Run EvaluationService
+        # Step 7: Run EvaluationService
         evaluator = EvaluationService()
         start = time.time()
         evaluation_result = evaluator.evaluate_submission(
@@ -714,7 +864,7 @@ async def auto_evaluate_submission(submission_id: str, request: AutoEvaluateRequ
             for qr in ce.question_results:
                 logger.info(f"  - Question: {qr.question}, Score: {qr.score}")
 
-        # Step 7: Store faculty evaluation (include question-level results so frontend can edit them)
+        # Step 8: Store faculty evaluation (include question-level results so frontend can edit them)
         rubric_scores = []
         for ce in evaluation_result.criterion_evaluations:
             question_results = [
@@ -733,23 +883,24 @@ async def auto_evaluate_submission(submission_id: str, request: AutoEvaluateRequ
         # 🔥 FIX: Use faculty_id from request or provide default
         faculty_id = getattr(request, 'faculty_id', "f20220162")
         
+        # Create new evaluation (we already checked for existing at the top)
         faculty_eval = DBFacultyEvaluation(
             submission_id=submission_id,
-            faculty_id=faculty_id,  # Make sure this is set
+            faculty_id=faculty_id,
             rubric_scores=rubric_scores,
             comments=evaluation_result.overall_feedback,
             evaluation_date=datetime.utcnow()
         )
         db.add(faculty_eval)
 
-        # Step 8: Update submission status + score
+        # Step 9: Update submission status + score
         submission.evaluation_status = "evaluated"
         submission.evaluation_score = evaluation_result.overall_score
         db.commit()
 
         logger.info(f"✅ Auto evaluation done for submission {submission_id} | Score: {evaluation_result.overall_score}/72")
 
-        # Step 9: Build rich response with structured dimensions and criteria
+        # Step 10: Build rich response with structured dimensions and criteria
         dimensions = []
         for ce in evaluation_result.criterion_evaluations:
             criteria_list = []
@@ -821,10 +972,24 @@ async def get_faculty_dashboard(db: Session = Depends(get_db)):
         
         result = []
         for qs in question_sets:
-            # Get the most recent submission for this student
-            submission = db.query(DBStudentSubmission).filter(
+            # Get the submission for this specific student AND assignment
+            # Filter by assignment_id if available, otherwise fall back to student_id only
+            submission_query = db.query(DBStudentSubmission).filter(
                 DBStudentSubmission.student_id == qs.student_id
-            ).order_by(DBStudentSubmission.created_at.desc()).first()
+            )
+            
+            # If question set has an assignment_id, filter by it to get the correct submission
+            if qs.assignment_id:
+                submission_query = submission_query.filter(
+                    DBStudentSubmission.assignment_id == qs.assignment_id
+                )
+            # If no assignment_id, also filter by course_id to match the course
+            elif qs.course_id:
+                submission_query = submission_query.filter(
+                    DBStudentSubmission.course_id == qs.course_id
+                )
+            
+            submission = submission_query.order_by(DBStudentSubmission.created_at.desc()).first()
             
             # Get course info if available
             course_name = None
