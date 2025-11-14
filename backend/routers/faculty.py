@@ -7,7 +7,7 @@ import uuid
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from datetime import datetime
 import json
@@ -35,11 +35,13 @@ radar_service = RadarService()
 
 @router.get("/pending-submissions")
 async def get_pending_submissions(db: Session = Depends(get_db)):
-    """Get all submissions pending faculty evaluation"""
+    """Get all submissions pending faculty evaluation and evaluated submissions (not finalized)"""
     try:
         submissions = (
             db.query(DBStudentSubmission)
-            .filter(DBStudentSubmission.evaluation_status == "pending_faculty")
+            .filter(
+                DBStudentSubmission.evaluation_status.in_(["pending_faculty", "evaluated"])
+            )
             .order_by(DBStudentSubmission.created_at.desc())
             .all()
         )
@@ -965,31 +967,52 @@ async def get_faculty_dashboard(db: Session = Depends(get_db)):
     Get comprehensive dashboard data with all student submissions and evaluations
     """
     try:
-        # Get all student question sets
-        question_sets = db.query(DBStudentQuestionSet).order_by(
+        # Get all student question sets with assignment relationship loaded
+        question_sets = db.query(DBStudentQuestionSet).options(
+            joinedload(DBStudentQuestionSet.assignment)
+        ).order_by(
             DBStudentQuestionSet.created_at.desc()
         ).all()
         
         result = []
         for qs in question_sets:
-            # Get the submission for this specific student AND assignment
-            # Filter by assignment_id if available, otherwise fall back to student_id only
-            submission_query = db.query(DBStudentSubmission).filter(
-                DBStudentSubmission.student_id == qs.student_id
-            )
+            # Get assignment_id from question set (either directly or through relationship)
+            assignment_id = qs.assignment_id
+            if not assignment_id and qs.assignment:
+                assignment_id = qs.assignment.id
             
-            # If question set has an assignment_id, filter by it to get the correct submission
-            if qs.assignment_id:
-                submission_query = submission_query.filter(
-                    DBStudentSubmission.assignment_id == qs.assignment_id
-                )
-            # If no assignment_id, also filter by course_id to match the course
-            elif qs.course_id:
-                submission_query = submission_query.filter(
-                    DBStudentSubmission.course_id == qs.course_id
-                )
+            # CRITICAL: Each submission is linked to a specific assignment_id
+            # We MUST match by both student_id AND assignment_id to get the correct submission
+            submission = None
             
-            submission = submission_query.order_by(DBStudentSubmission.created_at.desc()).first()
+            if assignment_id:
+                # Exact match: student_id + assignment_id (this ensures assignment-specific matching)
+                submission = db.query(DBStudentSubmission).filter(
+                    and_(
+                        DBStudentSubmission.student_id == qs.student_id,
+                        DBStudentSubmission.assignment_id == assignment_id
+                    )
+                ).order_by(DBStudentSubmission.created_at.desc()).first()
+                
+                # Log if no submission found for debugging
+                if not submission:
+                    logger.warning(
+                        f"No submission found for student_id={qs.student_id}, "
+                        f"assignment_id={assignment_id}, question_set_id={qs.id}"
+                    )
+            else:
+                # Fallback: if no assignment_id on question set, try to match by course_id
+                # This is less precise but handles edge cases
+                logger.warning(
+                    f"Question set {qs.id} has no assignment_id, falling back to course_id matching"
+                )
+                if qs.course_id:
+                    submission = db.query(DBStudentSubmission).filter(
+                        and_(
+                            DBStudentSubmission.student_id == qs.student_id,
+                            DBStudentSubmission.course_id == qs.course_id
+                        )
+                    ).order_by(DBStudentSubmission.created_at.desc()).first()
             
             # Get course info if available
             course_name = None
@@ -1008,6 +1031,13 @@ async def get_faculty_dashboard(db: Session = Depends(get_db)):
                 evaluation_score = submission.evaluation_score
                 submission_id = str(submission.id)
                 submission_date = submission.created_at.isoformat() if submission.created_at else None
+                
+                # Log for debugging - verify we got the correct submission
+                logger.debug(
+                    f"Question Set {qs.id}: Matched submission {submission_id} "
+                    f"(student={qs.student_id}, assignment={assignment_id}, "
+                    f"status={evaluation_status}, score={evaluation_score})"
+                )
             
             result.append(FacultyDashboardItem(
                 id=str(qs.id),
