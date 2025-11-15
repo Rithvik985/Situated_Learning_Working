@@ -11,7 +11,9 @@ import {
   faTrash,
   faSpinner,
   faCheckCircle,
-  faPlay
+  faPlay,
+  faEye,
+  faPaperPlane
 } from '@fortawesome/free-solid-svg-icons';
 import { useDropzone } from 'react-dropzone';
 import { getApiUrl, SERVERS, ENDPOINTS } from '../config/api';
@@ -23,7 +25,10 @@ const StudentPDFUpload = () => {
   const [studentId] = useState(location.state?.studentId);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [processingFiles, setProcessingFiles] = useState(false);
   const [error, setError] = useState(null);
+  const [showTextModal, setShowTextModal] = useState(false);
+  const [currentTextContent, setCurrentTextContent] = useState('');
 
   useEffect(() => {
     if (!selectedAssignment || !studentId) {
@@ -126,126 +131,235 @@ const StudentPDFUpload = () => {
     );
   };
 
-  const uploadSubmissions = async () => {
-    setUploadingFiles(true);
-    setError(null);
-    
-    try {
-      if (uploadedFiles.length === 0) {
-        throw new Error('No files selected');
-      }
-
-      const formData = new FormData();
-      formData.append('assignment_id', selectedAssignment.id);
-      formData.append('student_id', studentId);
-      
-      uploadedFiles.forEach(file => {
-        formData.append('files', file.originalFile);
-      });
-
-      const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.SUBMIT_EVALUATION), {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to upload files');
-      }
-
-      const result = await response.json();
-      console.log('Upload response:', result); // Debug log
-        // Then in your uploadSubmissions function, call it:
-      debugResponse(result); // Add this line
-      
-      // FIX: Properly extract the text content from response
-      let extractedText = '';
-      let finalSubmissionId = '';
-      
-      if (result && result.length > 0) {
-        // The backend returns an array of processed submissions
-        const processedSubmission = result[0];
-        finalSubmissionId = processedSubmission.id;
-        
-        // EXTRACT THE TEXT CONTENT - FIX THIS PART
-        if (processedSubmission.extracted_text) {
-          extractedText = processedSubmission.extracted_text;
-          console.log('Extracted text length:', extractedText.length);
-        } else {
-          console.warn('No extracted_text in response, checking other fields:', processedSubmission);
-          // Try alternative fields
-          if (processedSubmission.content) {
-            extractedText = processedSubmission.content;
-          }
-        }
-      } else {
-        throw new Error('No processed submission data received from server');
-      }
-
-      if (!extractedText) {
-        console.warn('No text content extracted from file');
-        extractedText = 'File processed but no text could be extracted. Please try manual input or a different file.';
-      }
-
-      // Update local files state with processing results
-      const updatedFiles = uploadedFiles.map((file, index) => ({
-        ...file,
-        id: finalSubmissionId || file.id,
-        submission_id: finalSubmissionId,
-        processing_status: 'processed',
-        extraction_method: 'standard',
-        ocr_confidence: 1.0,
-        extracted_text_preview: extractedText ? 
-          extractedText.substring(0, 200) + '...' : 'Text extraction completed',
-        file_path: result[0]?.file_path,
-        // Store the full extracted text for analysis
-        full_extracted_text: extractedText
-      }));
-
-      setUploadedFiles(updatedFiles);
-
-      // Navigate back with the ACTUAL EXTRACTED TEXT
-      navigate('/student/evaluation', {
-        state: {
-          studentId,
-          selectedAssignment,
-          submissionContent: extractedText, // THIS IS THE CRITICAL PART
-          submissionId: finalSubmissionId,
-          uploadedFiles: updatedFiles,
-          processingComplete: true,
-          fromUpload: true
-        },
-        replace: true
-      });
-    } catch (err) {
-      setError(err.message);
-      console.error('Upload error:', err);
-    } finally {
-      setUploadingFiles(false);
+  // NEW: Separate processing function
+// NEW: Enhanced processing function with better text extraction
+// NEW: Enhanced processing function with better text handling
+const processFiles = async () => {
+  setProcessingFiles(true);
+  setError(null);
+  
+  try {
+    if (uploadedFiles.length === 0) {
+      throw new Error('No files selected');
     }
+
+    const formData = new FormData();
+    formData.append('assignment_id', selectedAssignment.id);
+    formData.append('student_id', studentId);
+    
+    uploadedFiles.forEach(file => {
+      formData.append('files', file.originalFile);
+    });
+
+    const response = await fetch(getApiUrl(SERVERS.EVALUATION, ENDPOINTS.SUBMIT_EVALUATION), {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to process files');
+    }
+
+    const result = await response.json();
+    console.log('Process response:', result);
+    debugResponse(result);
+
+    // FIXED: Robust text extraction from response
+    let extractedText = '';
+    let finalSubmissionId = '';
+    let extractionMethod = 'standard';
+    
+    if (result && result.length > 0) {
+      const processedSubmission = result[0];
+      finalSubmissionId = processedSubmission.id;
+      extractionMethod = processedSubmission.extraction_method || 'standard';
+      
+      // Try multiple possible fields for extracted text
+      const possibleTextFields = [
+        'extracted_text',      // Primary field for file extraction
+        'content',             // Fallback field
+        'text',                // Alternative field name
+        'submission_content',  // Another possible field
+        'processed_text'       // Yet another possibility
+      ];
+      
+      for (const field of possibleTextFields) {
+        if (processedSubmission[field] && typeof processedSubmission[field] === 'string') {
+          extractedText = processedSubmission[field].trim();
+          console.log(`Found text in field "${field}", length:`, extractedText.length);
+          console.log(`First 500 chars:`, extractedText.substring(0, 500));
+          break;
+        }
+      }
+      
+      // If no text found, log all available fields for debugging
+      if (!extractedText) {
+        console.warn('No text content found in response. Available fields:', Object.keys(processedSubmission));
+      }
+    } else {
+      throw new Error('No processed submission data received from server');
+    }
+
+    // Handle case where text is very short (likely incomplete extraction)
+    let processingStatus = 'processed';
+    let userMessage = '';
+    
+    if (!extractedText) {
+      extractedText = 'File was processed successfully but no text content could be extracted. This might be due to:\n- Image-based PDF with poor OCR results\n- Empty or corrupted file\n- Processing error\n\nPlease try manual input or upload a different file.';
+      processingStatus = 'failed';
+      userMessage = 'No text could be extracted from your file.';
+    } else if (extractedText.length < 50) {
+      userMessage = 'Very little text was extracted. The file might be image-based or contain mostly non-text elements.';
+      console.warn('Very short text extracted:', extractedText);
+    } else if (extractedText.length < 200) {
+      userMessage = 'Limited text was extracted. You may want to verify the content or try manual input.';
+      console.warn('Short text extracted:', extractedText);
+    }
+
+    if (userMessage) {
+      setError(userMessage);
+    }
+
+    // Update local files state with processing results
+    const updatedFiles = uploadedFiles.map((file, index) => ({
+      ...file,
+      id: finalSubmissionId || file.id,
+      submission_id: finalSubmissionId,
+      processing_status: processingStatus,
+      extraction_method: extractionMethod,
+      ocr_confidence: 1.0,
+      extracted_text_preview: extractedText ? 
+        (extractedText.length > 200 ? extractedText.substring(0, 200) + '...' : extractedText) : 'No text extracted',
+      file_path: result[0]?.file_path,
+      // Store the full extracted text for analysis
+      full_extracted_text: extractedText
+    }));
+
+    setUploadedFiles(updatedFiles);
+
+  } catch (err) {
+    setError(err.message);
+    console.error('Processing error:', err);
+  } finally {
+    setProcessingFiles(false);
+  }
+};
+  // NEW: Submit function (navigate with extracted text)
+  const submitForEvaluation = () => {
+    if (uploadedFiles.length === 0) {
+      setError('No files processed yet');
+      return;
+    }
+
+    const processedFile = uploadedFiles[0];
+    if (processedFile.processing_status !== 'processed') {
+      setError('Please process the file first before submitting');
+      return;
+    }
+
+    const extractedText = processedFile.full_extracted_text || '';
+    
+    navigate('/student/evaluation', {
+      state: {
+        studentId,
+        selectedAssignment,
+        submissionContent: extractedText,
+        submissionId: processedFile.submission_id,
+        uploadedFiles: uploadedFiles,
+        processingComplete: true,
+        fromUpload: true
+      },
+      replace: true
+    });
   };
+
+  // NEW: Function to view extracted text
+  const viewExtractedText = (fileObj) => {
+    const textContent = fileObj.full_extracted_text || 
+                       fileObj.extracted_text_preview || 
+                       'No text content available';
+    setCurrentTextContent(textContent);
+    setShowTextModal(true);
+  };
+
   const removeFile = (fileId) => {
     setUploadedFiles(files => files.filter(f => f.id !== fileId));
     setError(null);
   };
 
-    // Add this helper function to debug the API response
-  const debugResponse = (result) => {
-    console.log('=== DEBUG API RESPONSE ===');
-    console.log('Full response:', result);
-    if (result && result.length > 0) {
-      const firstItem = result[0];
-      console.log('First item keys:', Object.keys(firstItem));
-      console.log('extracted_text exists:', 'extracted_text' in firstItem);
-      console.log('extracted_text value:', firstItem.extracted_text);
-      console.log('extracted_text length:', firstItem.extracted_text ? firstItem.extracted_text.length : 0);
-      console.log('content exists:', 'content' in firstItem);
-      console.log('content value:', firstItem.content);
-    }
-    console.log('=== END DEBUG ===');
-  };
-
-
+  // const debugResponse = (result) => {
+  //   console.log('=== DEBUG API RESPONSE ===');
+  //   console.log('Full response:', result);
+  //   if (result && result.length > 0) {
+  //     const firstItem = result[0];
+  //     console.log('First item keys:', Object.keys(firstItem));
+  //     console.log('extracted_text exists:', 'extracted_text' in firstItem);
+  //     console.log('extracted_text value:', firstItem.extracted_text);
+  //     console.log('extracted_text length:', firstItem.extracted_text ? firstItem.extracted_text.length : 0);
+  //     console.log('content exists:', 'content' in firstItem);
+  //     console.log('content value:', firstItem.content);
+  //   }
+  //   console.log('=== END DEBUG ===');
+  // };
+//  In your uploadSubmissions function, the response parsing needs to be more robust:
+// const debugResponse = (result) => {
+//     console.log('=== DEBUG API RESPONSE ===');
+//     console.log('Full response structure:', JSON.stringify(result, null, 2));
+//     if (result && result.length > 0) {
+//         const firstItem = result[0];
+//         console.log('Available fields:', Object.keys(firstItem));
+        
+//         // Check ALL possible text fields
+//         const textFields = ['extracted_text', 'content', 'text', 'submission_content', 'processed_text'];
+//         textFields.forEach(field => {
+//             if (firstItem[field]) {
+//                 console.log(`Field "${field}":`, firstItem[field].substring(0, 100) + '...');
+//                 console.log(`Field "${field}" length:`, firstItem[field].length);
+//             }
+//         });
+//     }
+//     console.log('=== END DEBUG ===');
+// };
+const debugResponse = (result) => {
+  console.log('=== DEBUG API RESPONSE ===');
+  console.log('Response type:', typeof result);
+  console.log('Is array:', Array.isArray(result));
+  
+  if (Array.isArray(result)) {
+    console.log('Array length:', result.length);
+    result.forEach((item, index) => {
+      console.log(`\n--- Item ${index} ---`);
+      console.log('Type:', typeof item);
+      console.log('Keys:', Object.keys(item));
+      
+      // Check all fields
+      Object.keys(item).forEach(key => {
+        const value = item[key];
+        if (typeof value === 'string') {
+          console.log(`Field "${key}" (length: ${value.length}):`, 
+            value.length > 300 ? value.substring(0, 300) + '...' : value
+          );
+        } else {
+          console.log(`Field "${key}":`, value);
+        }
+      });
+    });
+  } else if (typeof result === 'object') {
+    console.log('Object keys:', Object.keys(result));
+    Object.keys(result).forEach(key => {
+      const value = result[key];
+      if (typeof value === 'string') {
+        console.log(`Field "${key}" (length: ${value.length}):`, 
+          value.length > 300 ? value.substring(0, 300) + '...' : value
+        );
+      } else {
+        console.log(`Field "${key}":`, value);
+      }
+    });
+  }
+  console.log('=== END DEBUG ===');
+};
 
   return (
     <div className="container" style={{ padding: '2rem', minHeight: '100vh' }}>
@@ -386,58 +500,146 @@ const StudentPDFUpload = () => {
                         </div>
                         
                         {/* Text Preview */}
-                        {fileObj.extracted_text_preview && (
-                          <div style={{ 
-                            marginTop: '0.5rem',
-                            padding: '0.75rem',
-                            backgroundColor: 'var(--bg-lighter)',
-                            borderRadius: '4px',
-                            fontSize: '0.85rem',
-                            color: 'var(--text-secondary)',
-                            fontFamily: 'monospace',
-                            maxHeight: '100px',
-                            overflow: 'auto',
-                            border: '1px solid var(--border-color)'
-                          }}>
-                            <strong>Extracted Text Preview:</strong> 
-                            <div style={{ marginTop: '0.5rem', lineHeight: '1.4' }}>
-                              {fileObj.extracted_text_preview}
-                            </div>
-                          </div>
-                        )}
+{/* Text Preview */}
+{/* {fileObj.extracted_text_preview && (
+  <div style={{ 
+    marginTop: '0.5rem',
+    padding: '0.75rem',
+    backgroundColor: 'var(--bg-lighter)',
+    borderRadius: '4px',
+    fontSize: '0.85rem',
+    color: 'var(--text-secondary)',
+    fontFamily: 'monospace',
+    maxHeight: '100px',
+    overflow: 'auto',
+    border: '1px solid var(--border-color)'
+  }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+      <strong>Extracted Text Preview:</strong>
+      {fileObj.full_extracted_text && fileObj.full_extracted_text.length > 200 && (
+        <button
+          className="btn btn-link btn-sm"
+          onClick={() => viewExtractedText(fileObj)}
+          style={{ padding: '0', fontSize: '0.8rem' }}
+        >
+          View Full Text ({fileObj.full_extracted_text.length} chars)
+        </button>
+      )}
+    </div>
+    <div style={{ marginTop: '0.5rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+      {fileObj.extracted_text_preview}
+    </div>
+  </div>
+)} */}
+{/* Text Preview */}
+{(fileObj.extracted_text_preview || fileObj.processing_status === 'failed') && (
+  <div style={{ 
+    marginTop: '0.5rem',
+    padding: '0.75rem',
+    backgroundColor: fileObj.processing_status === 'failed' ? '#fff3cd' : 'var(--bg-lighter)',
+    borderRadius: '4px',
+    fontSize: '0.85rem',
+    color: fileObj.processing_status === 'failed' ? '#856404' : 'var(--text-secondary)',
+    fontFamily: 'monospace',
+    maxHeight: '100px',
+    overflow: 'auto',
+    border: `1px solid ${fileObj.processing_status === 'failed' ? '#ffeaa7' : 'var(--border-color)'}`
+  }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+      <strong>
+        {fileObj.processing_status === 'failed' ? 'Extraction Failed:' : 'Extracted Text Preview:'}
+        {fileObj.full_extracted_text && ` (${fileObj.full_extracted_text.length} chars)`}
+      </strong>
+      {fileObj.full_extracted_text && fileObj.full_extracted_text.length > 200 && (
+        <button
+          className="btn btn-link btn-sm"
+          onClick={() => viewExtractedText(fileObj)}
+          style={{ padding: '0', fontSize: '0.8rem' }}
+        >
+          View Full Text
+        </button>
+      )}
+    </div>
+    <div style={{ marginTop: '0.5rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+      {fileObj.extracted_text_preview}
+    </div>
+    {fileObj.full_extracted_text && fileObj.full_extracted_text.length < 200 && (
+      <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#ff9800' }}>
+        ⚠️ Only {fileObj.full_extracted_text.length} characters extracted. This might be incomplete.
+      </div>
+    )}
+  </div>
+)}
                       </div>
                       
-                      <button
-                        className="btn btn-outline btn-sm"
-                        onClick={() => removeFile(fileObj.id)}
-                        disabled={uploadingFiles}
-                        style={{ marginLeft: '1rem' }}
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '1rem' }}>
+                        {/* View Text Button - Only show when file is processed */}
+                        {fileObj.processing_status === 'processed' && (
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => viewExtractedText(fileObj)}
+                            title="View Full Extracted Text"
+                          >
+                            <FontAwesomeIcon icon={faEye} />
+                          </button>
+                        )}
+                        
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => removeFile(fileObj.id)}
+                          disabled={processingFiles || uploadingFiles}
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
               
-              <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-                <button 
-                  className="btn btn-primary btn-lg"
-                  onClick={uploadSubmissions}
-                  disabled={uploadingFiles}
-                >
-                  {uploadingFiles ? (
-                    <>
-                      <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: '0.5rem' }} />
-                      Processing File...
-                    </>
-                  ) : (
-                    <>
-                      <FontAwesomeIcon icon={faPlay} style={{ marginRight: '0.5rem' }} />
-                      Process & Submit
-                    </>
-                  )}
-                </button>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem', flexWrap: 'wrap' }}>
+                {/* Process Button - Only show if file is not processed yet */}
+                {uploadedFiles.some(file => file.processing_status !== 'processed') && (
+                  <button 
+                    className="btn btn-primary btn-lg"
+                    onClick={processFiles}
+                    disabled={processingFiles}
+                  >
+                    {processingFiles ? (
+                      <>
+                        <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: '0.5rem' }} />
+                        Processing File...
+                      </>
+                    ) : (
+                      <>
+                        <FontAwesomeIcon icon={faPlay} style={{ marginRight: '0.5rem' }} />
+                        Process File
+                      </>
+                    )}
+                  </button>
+                )}
+                
+                {/* Submit Button - Only show when file is processed */}
+                {uploadedFiles.some(file => file.processing_status === 'processed') && (
+                  <button 
+                    className="btn btn-success btn-lg"
+                    onClick={submitForEvaluation}
+                    disabled={uploadingFiles}
+                  >
+                    {uploadingFiles ? (
+                      <>
+                        <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: '0.5rem' }} />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <FontAwesomeIcon icon={faPaperPlane} style={{ marginRight: '0.5rem' }} />
+                        Submit for Evaluation
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -445,9 +647,75 @@ const StudentPDFUpload = () => {
           <div style={{ textAlign: 'center', marginTop: '2rem' }}>
             {uploadedFiles.length > 0 && (
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                Click "Process & Submit" to extract text from your submission and proceed to evaluation.
+                {uploadedFiles.some(file => file.processing_status !== 'processed') 
+                  ? 'Click "Process File" to extract text from your submission, then "Submit for Evaluation" to proceed.'
+                  : 'Text extraction complete! Review the extracted text and click "Submit for Evaluation" to proceed.'}
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Extracted Text Modal */}
+      {showTextModal && (
+        <div className="modal" style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.5)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          zIndex: 1000 
+        }}>
+          <div className="modal-content" style={{ 
+            backgroundColor: 'white', 
+            padding: '2rem', 
+            borderRadius: '8px', 
+            maxWidth: '90%', 
+            maxHeight: '90%', 
+            width: '800px',
+            overflow: 'auto',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, color: 'var(--primary)' }}>
+                <FontAwesomeIcon icon={faEye} style={{ marginRight: '0.5rem' }} />
+                Extracted Text Content
+              </h3>
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowTextModal(false)}
+              >
+                Close
+              </button>
+            </div>
+            
+            <div style={{ 
+              padding: '1rem',
+              backgroundColor: 'var(--bg-lighter)',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              maxHeight: '500px',
+              overflow: 'auto',
+              fontFamily: 'monospace',
+              fontSize: '0.9rem',
+              lineHeight: '1.5',
+              whiteSpace: 'pre-wrap'
+            }}>
+              {currentTextContent || 'No text content available'}
+            </div>
+            
+            <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
+              <button 
+                className="btn btn-primary"
+                onClick={() => setShowTextModal(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
